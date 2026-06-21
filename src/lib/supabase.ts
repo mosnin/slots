@@ -66,6 +66,17 @@ export async function getPrizePool(): Promise<number> {
   }
 }
 
+export async function getAllTimeStats(): Promise<{ totalPlayers: number; highScore: number }> {
+  const [playersRes, scoreRes] = await Promise.all([
+    supabase.from('users').select('wallet', { count: 'exact', head: true }),
+    supabase.from('scores').select('score').order('score', { ascending: false }).limit(1),
+  ]);
+  return {
+    totalPlayers: playersRes.count ?? 0,
+    highScore: scoreRes.data?.[0]?.score ?? 0,
+  };
+}
+
 export async function getNextDraw(): Promise<number> {
   const { data } = await supabase
     .from('config')

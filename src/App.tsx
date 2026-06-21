@@ -6,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { GamePage } from './components/GamePage';
 import { useGameStore } from './store/gameStore';
 import { useChickenBalance } from './hooks/useChickenBalance';
-import { getLeaderboard, getPastWinners, getPrizePool, getNextDraw } from './lib/supabase';
+import { getLeaderboard, getPastWinners, getPrizePool, getNextDraw, getAllTimeStats } from './lib/supabase';
 import toast from 'react-hot-toast';
 
 export function App() {
@@ -18,6 +18,7 @@ export function App() {
     setPrizePool,
     setTimeUntilDraw,
     setPlayerRank,
+    setAllTimeStats,
   } = useGameStore();
   const phase = useGameStore((s) => s.phase);
 
@@ -58,11 +59,12 @@ export function App() {
   useEffect(() => {
     const refresh = async () => {
       try {
-        const [lb, winners, pool, nextDraw] = await Promise.all([
+        const [lb, winners, pool, nextDraw, allTime] = await Promise.all([
           getLeaderboard(),
           getPastWinners(),
           getPrizePool(),
           getNextDraw(),
+          getAllTimeStats(),
         ]);
 
         // Detect a new winner: winners list grew since last poll
@@ -112,6 +114,7 @@ export function App() {
 
         setPrizePool(pool);
         nextDrawRef.current = nextDraw;
+        setAllTimeStats(allTime.totalPlayers, allTime.highScore);
 
         if (publicKey) {
           const rank = lb.findIndex((e: any) => e.wallet === publicKey.toBase58());

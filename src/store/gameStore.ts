@@ -32,6 +32,8 @@ interface GameStore {
   leaderboard: LeaderboardEntry[];
   pastWinners: PastWinner[];
   playerRank: number | null;
+  allTimePlayers: number;
+  allTimeHighScore: number;
   // Token gating
   chickenBalance: number | null;  // null = not yet checked
   isEligible: boolean;
@@ -42,6 +44,7 @@ interface GameStore {
   setLeaderboard: (lb: LeaderboardEntry[]) => void;
   setPastWinners: (pw: PastWinner[]) => void;
   setPlayerRank: (rank: number | null) => void;
+  setAllTimeStats: (players: number, highScore: number) => void;
   setChickenBalance: (balance: number | null) => void;
   incrementScore: () => void;
   incrementDistance: () => void;
@@ -59,6 +62,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   leaderboard: [],
   pastWinners: [],
   playerRank: null,
+  allTimePlayers: 0,
+  allTimeHighScore: 0,
   chickenBalance: null,
   isEligible: false,
   setPhase: (phase) => set({ phase }),
@@ -68,6 +73,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setPastWinners: (pastWinners) => set({ pastWinners }),
   setPlayerRank: (playerRank) => set({ playerRank }),
+  setAllTimeStats: (allTimePlayers, allTimeHighScore) => set({ allTimePlayers, allTimeHighScore }),
   setChickenBalance: (chickenBalance) => set({
     chickenBalance,
     isEligible: chickenBalance !== null && chickenBalance >= CHICKEN_TOKEN_THRESHOLD,

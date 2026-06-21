@@ -189,6 +189,8 @@ export function LandingPage({ onPlay }: LandingPageProps) {
   const timeUntilDraw = useGameStore((s) => s.timeUntilDraw);
   const leaderboard = useGameStore((s) => s.leaderboard);
   const pastWinners = useGameStore((s) => s.pastWinners);
+  const allTimePlayers = useGameStore((s) => s.allTimePlayers);
+  const allTimeHighScore = useGameStore((s) => s.allTimeHighScore);
 
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
@@ -437,8 +439,8 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       <section className="relative z-10 px-5 pb-14">
         <div className="max-w-lg mx-auto grid grid-cols-3 gap-3">
           {[
-            { icon: '👥', value: `${leaderboard.length}`, label: 'Players' },
-            { icon: '🔄', value: `${pastWinners.length}`, label: 'Rounds' },
+            { icon: '👥', value: allTimePlayers > 0 ? allTimePlayers.toLocaleString() : '—', label: 'All-Time Players' },
+            { icon: '🏆', value: allTimeHighScore > 0 ? allTimeHighScore.toLocaleString() : '—', label: 'High Score' },
             { icon: '💸', value: totalPaidOut > 0 ? `${totalPaidOut.toFixed(2)}◎` : '—', label: 'Paid Out' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
