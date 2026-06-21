@@ -6,7 +6,7 @@ export const PROGRAM_ID = new PublicKey(
   "ChkRd1111111111111111111111111111111111111111"
 );
 export const RPC_URL =
-  import.meta.env.VITE_RPC_URL || clusterApiUrl("devnet");
+  process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl("devnet");
 
 export const connection = new Connection(RPC_URL, "confirmed");
 

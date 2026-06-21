@@ -1,3 +1,5 @@
+'use client';
+
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { PerspectiveCamera, Stars } from "@react-three/drei";

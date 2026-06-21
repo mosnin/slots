@@ -1,3 +1,5 @@
+'use client';
+
 import { ChickenGame } from "../game/ChickenGame";
 import { motion } from "framer-motion";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";

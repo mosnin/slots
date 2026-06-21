@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from "framer-motion";
 import { useGameStore } from "../store/gameStore";
 import { useWallet } from "@solana/wallet-adapter-react";

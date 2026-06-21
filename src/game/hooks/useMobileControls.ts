@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useRef } from "react";
 
 type MoveDir = "up" | "down" | "left" | "right";

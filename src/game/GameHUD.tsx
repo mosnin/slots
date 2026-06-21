@@ -1,3 +1,5 @@
+'use client';
+
 import { useGameStore } from "../store/gameStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { lamportsToSol } from "../lib/solana";
