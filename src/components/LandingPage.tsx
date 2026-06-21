@@ -222,10 +222,20 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           <a href="#faq" className="hover:text-yellow-400 transition-colors">FAQ</a>
         </div>
         <div className="flex items-center gap-2">
+          {/* Social links — update hrefs when accounts are live */}
           <div className="hidden sm:flex items-center gap-1.5">
-            <a href="https://x.com/chickengamewtf" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">𝕏</a>
-            <a href="https://t.me/chickengamewtf" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">✈</a>
-            <a href="https://pump.fun" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">📈</a>
+            {[
+              { label: '𝕏', href: process.env.NEXT_PUBLIC_TWITTER_URL || null, title: 'Twitter / X' },
+              { label: '✈', href: process.env.NEXT_PUBLIC_TELEGRAM_URL || null, title: 'Telegram' },
+              { label: '📈', href: process.env.NEXT_PUBLIC_PUMPFUN_URL || null, title: 'pump.fun' },
+            ].map(({ label, href, title }) =>
+              href ? (
+                <a key={title} href={href} target="_blank" rel="noopener noreferrer" title={title}
+                  className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">
+                  {label}
+                </a>
+              ) : null
+            )}
           </div>
           <WalletMultiButton />
         </div>
@@ -321,14 +331,20 @@ export function LandingPage({ onPlay }: LandingPageProps) {
               <div className="text-center md:text-left">
                 <p className="text-white/30 text-[10px] uppercase tracking-[0.25em] mb-1">💰 Current Prize Pot</p>
                 <div className="font-display leading-none">
-                  <span className="text-5xl md:text-6xl" style={{ color: '#FFD700', textShadow: '0 0 40px rgba(251,191,36,0.7)' }}>
-                    {prizePool > 0 ? prizePool.toFixed(4) : '—'}
-                  </span>
-                  {prizePool > 0 && <span className="text-lg text-yellow-400/50 ml-1.5">SOL</span>}
+                  {prizePool > 0 ? (
+                    <>
+                      <span className="text-5xl md:text-6xl" style={{ color: '#FFD700', textShadow: '0 0 40px rgba(251,191,36,0.7)' }}>
+                        {prizePool.toFixed(4)}
+                      </span>
+                      <span className="text-lg text-yellow-400/50 ml-1.5">SOL</span>
+                    </>
+                  ) : (
+                    <span className="text-3xl md:text-4xl text-white/30">Filling up…</span>
+                  )}
                 </div>
                 {prizePool > 0
                   ? <p className="text-white/25 text-xs mt-1">≈ ${(prizePool * 180).toFixed(2)} USD</p>
-                  : <p className="text-white/25 text-xs mt-1">Funded by $CHICKEN creator rewards</p>
+                  : <p className="text-white/25 text-xs mt-1">Grows with every $CHICKEN trade on pump.fun</p>
                 }
               </div>
 
@@ -545,9 +561,15 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             <span className="font-display text-white/30 tracking-widest text-sm">CHICKEN ROAD</span>
           </div>
           <div className="flex items-center gap-4 text-white/30 text-xs">
-            <a href="https://x.com/chickengamewtf" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">Twitter / X</a>
-            <a href="https://t.me/chickengamewtf" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">Telegram</a>
-            <a href="https://pump.fun" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">pump.fun</a>
+            {process.env.NEXT_PUBLIC_TWITTER_URL && (
+              <a href={process.env.NEXT_PUBLIC_TWITTER_URL} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">Twitter / X</a>
+            )}
+            {process.env.NEXT_PUBLIC_TELEGRAM_URL && (
+              <a href={process.env.NEXT_PUBLIC_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">Telegram</a>
+            )}
+            {process.env.NEXT_PUBLIC_PUMPFUN_URL && (
+              <a href={process.env.NEXT_PUBLIC_PUMPFUN_URL} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">pump.fun</a>
+            )}
           </div>
           <span className="text-white/20 text-xs">chickengame.wtf · No house edge · Powered by $CHICKEN</span>
         </div>

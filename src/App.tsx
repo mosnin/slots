@@ -21,8 +21,10 @@ export function App() {
   const phase = useGameStore((s) => s.phase);
 
   const nextDrawRef = useRef<number>(Date.now() + 300000);
-  // Anti-cheat: a fresh signed session is issued at the start of every run.
   const sessionRef = useRef<any>(null);
+  // Track previous leaderboard length to detect round resets
+  const prevLbLenRef = useRef<number>(0);
+  const prevWinnersLenRef = useRef<number>(0);
 
   // Register / refresh the player record whenever a wallet connects.
   useEffect(() => {
@@ -34,7 +36,7 @@ export function App() {
     }).catch(() => {});
   }, [publicKey]);
 
-  // Issue a new session each time a run begins (idle/dead -> playing).
+  // Issue a new session each time a run begins.
   useEffect(() => {
     if (phase !== 'playing' || !publicKey) return;
     sessionRef.current = null;
@@ -48,7 +50,7 @@ export function App() {
       .catch(() => {});
   }, [phase, publicKey]);
 
-  // Poll Supabase every 10s
+  // Poll Supabase every 10s — detect round resets and toast the winner
   useEffect(() => {
     const refresh = async () => {
       try {
@@ -58,6 +60,30 @@ export function App() {
           getPrizePool(),
           getNextDraw(),
         ]);
+
+        // Detect a new winner: winners list grew since last poll
+        if (prevWinnersLenRef.current > 0 && winners.length > prevWinnersLenRef.current) {
+          const newest = winners[0];
+          if (newest) {
+            const short = `${newest.wallet.slice(0, 6)}…${newest.wallet.slice(-4)}`;
+            const sol = Number(newest.amount_sol).toFixed(4);
+            toast.success(`🏆 Round ended! ${short} won ${sol} ◎`, {
+              duration: 6000,
+              style: { background: '#1a1a2e', border: '1px solid rgba(251,191,36,0.4)', color: '#fff' },
+              icon: '💸',
+            });
+          }
+        }
+        prevWinnersLenRef.current = winners.length;
+
+        // Detect leaderboard reset: board was non-empty last poll, now empty
+        if (prevLbLenRef.current > 0 && lb.length === 0) {
+          toast('🔄 New round started — leaderboard reset', {
+            duration: 4000,
+            style: { background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' },
+          });
+        }
+        prevLbLenRef.current = lb.length;
 
         setLeaderboard(
           lb.map((e: any) => ({
@@ -87,7 +113,7 @@ export function App() {
           const rank = lb.findIndex((e: any) => e.wallet === publicKey.toBase58());
           setPlayerRank(rank >= 0 ? rank + 1 : null);
         }
-      } catch (e) {
+      } catch {
         // silently ignore fetch errors
       }
     };
@@ -106,6 +132,26 @@ export function App() {
     return () => clearInterval(t);
   }, []);
 
+  // Submit score on tab close / navigation away mid-run.
+  // Uses sendBeacon so it fires even after the page begins unloading.
+  useEffect(() => {
+    const handleUnload = () => {
+      const store = useGameStore.getState();
+      if (store.phase !== 'playing' || store.score === 0 || !publicKey) return;
+      const session = sessionRef.current;
+      if (!session) return;
+      const payload = JSON.stringify({
+        wallet: publicKey.toBase58(),
+        score: store.score,
+        distance: store.distance,
+        session,
+      });
+      navigator.sendBeacon('/api/score', new Blob([payload], { type: 'application/json' }));
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [publicKey]);
+
   const handleScoreSubmit = async (score: number, distance: number) => {
     if (score === 0 || !publicKey) return;
     const session = sessionRef.current;
@@ -119,7 +165,6 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet: publicKey.toBase58(), score, distance, session }),
       });
-      // Each session is single-use; clear it so a death can't be re-submitted.
       sessionRef.current = null;
       if (res.ok) {
         toast.success(`Score ${score.toLocaleString()} saved! 🐔`);

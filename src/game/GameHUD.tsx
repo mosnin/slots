@@ -21,6 +21,12 @@ export function GameHUD() {
   const pastWinners = useGameStore(s => s.pastWinners);
   const resetGame = useGameStore(s => s.resetGame);
 
+  // Optimistic live rank: where would the current score place right now?
+  // This updates every hop without waiting for a server round-trip.
+  const liveRank = leaderboard.length === 0
+    ? 1
+    : leaderboard.filter(e => e.score > score).length + 1;
+
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
   const timerPct = ((300 - timeUntilDraw) / 300) * 100;
@@ -80,20 +86,25 @@ export function GameHUD() {
                 <div className="text-yellow-300 text-[10px] font-mono mt-0.5">{mins}:{secs.toString().padStart(2, '0')}</div>
               </div>
 
-              {/* Rank */}
-              <div className="bg-black/70 backdrop-blur border border-purple-400/30 rounded-2xl px-3 py-2 text-center min-w-[60px]">
-                <div className="text-purple-400 font-display text-xl leading-none">{playerRank ? `#${playerRank}` : '—'}</div>
-                <div className="text-white/40 text-[10px]">rank</div>
+              {/* Live rank (optimistic, updates every hop) */}
+              <div className={`bg-black/70 backdrop-blur rounded-2xl px-3 py-2 text-center min-w-[60px] border ${liveRank === 1 ? 'border-yellow-400/60' : 'border-purple-400/30'}`}>
+                <div className={`font-display text-xl leading-none ${liveRank === 1 ? 'text-yellow-400' : 'text-purple-400'}`}>
+                  #{liveRank}
+                </div>
+                <div className="text-white/40 text-[10px]">{liveRank === 1 ? '👑 leading' : 'rank'}</div>
               </div>
             </div>
 
-            {/* Gap to leader inline hint */}
-            {leaderboard.length > 0 && playerRank !== 1 && (
+            {/* Live gap to leader */}
+            {leaderboard.length > 0 && (
               <div className="text-center">
                 <span className="bg-black/50 backdrop-blur rounded-full px-3 py-0.5 text-white/30 text-[10px]">
-                  {gapToLeader !== null && gapToLeader > 0
-                    ? `${gapToLeader.toLocaleString()} pts behind #1`
-                    : 'You\'re in the lead!'}
+                  {liveRank === 1
+                    ? leaderboard.length > 0 && leaderboard[0]?.score < score
+                      ? `Leading by ${(score - leaderboard[0].score).toLocaleString()} pts`
+                      : "You're in the lead — keep going!"
+                    : `${(leaderboard[liveRank - 2]?.score - score || 0).toLocaleString()} pts to reach #${liveRank - 1}`
+                  }
                 </span>
               </div>
             )}

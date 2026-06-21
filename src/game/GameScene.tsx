@@ -644,27 +644,54 @@ export function GameScene() {
         ctx.fillRect(0, groundTop, W, H - groundTop);
       }
 
-      // Rising danger floor (visible threat zone)
+      // Rising lava floor — unmistakably deadly
       if (phase === 'playing' && !isDead.current) {
         const floorScreenY = wts(scrollFloorRef.current);
-        // Red gradient creeping up from the bottom
-        if (floorScreenY < H + 20) {
-          const dangerGrad = ctx.createLinearGradient(0, Math.max(0, floorScreenY - 60), 0, H);
-          dangerGrad.addColorStop(0, 'rgba(220,30,10,0)');
-          dangerGrad.addColorStop(0.5, 'rgba(220,30,10,0.25)');
-          dangerGrad.addColorStop(1, 'rgba(180,0,0,0.6)');
-          ctx.fillStyle = dangerGrad;
-          ctx.fillRect(0, Math.max(0, floorScreenY - 60), W, H - Math.max(0, floorScreenY - 60));
+        const lavaTop = Math.max(0, floorScreenY - 4);
 
-          // Hard edge line
-          ctx.strokeStyle = 'rgba(255,60,20,0.85)';
+        if (lavaTop < H + 40) {
+          // Lava body below the floor line
+          const lavaGrad = ctx.createLinearGradient(0, lavaTop, 0, H);
+          lavaGrad.addColorStop(0, '#ff6a00');
+          lavaGrad.addColorStop(0.35, '#e63600');
+          lavaGrad.addColorStop(1, '#7a0000');
+          ctx.fillStyle = lavaGrad;
+          ctx.fillRect(0, lavaTop, W, H - lavaTop);
+
+          // Animated lava blobs along the surface
+          ctx.save();
+          const blobCount = Math.ceil(W / 38);
+          for (let b = 0; b < blobCount; b++) {
+            const bx = (b / blobCount) * W + ((t / 900 + b * 0.37) % 1) * (W / blobCount);
+            const by = lavaTop - 6 + Math.sin(t / 400 + b * 1.7) * 5;
+            ctx.beginPath();
+            ctx.ellipse(bx, by, 14 + Math.sin(b * 2.1) * 5, 9 + Math.sin(b) * 3, 0, 0, Math.PI * 2);
+            ctx.fillStyle = b % 2 === 0 ? '#ff8c00' : '#ff5500';
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // Bright glowing rim
+          ctx.save();
+          ctx.shadowColor = '#ff6a00';
+          ctx.shadowBlur = 18;
+          ctx.strokeStyle = '#ffaa00';
           ctx.lineWidth = 3;
-          ctx.setLineDash([12, 7]);
           ctx.beginPath();
-          ctx.moveTo(0, floorScreenY);
-          ctx.lineTo(W, floorScreenY);
+          ctx.moveTo(0, lavaTop);
+          ctx.lineTo(W, lavaTop);
           ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.restore();
+
+          // Danger gradient overlay above the floor so it bleeds upward
+          if (floorScreenY > 0) {
+            const warnH = Math.min(90, floorScreenY);
+            const warnGrad = ctx.createLinearGradient(0, floorScreenY - warnH, 0, floorScreenY);
+            warnGrad.addColorStop(0, 'rgba(255,80,0,0)');
+            warnGrad.addColorStop(1, 'rgba(255,80,0,0.18)');
+            ctx.fillStyle = warnGrad;
+            ctx.fillRect(0, floorScreenY - warnH, W, warnH);
+          }
         }
       }
 
