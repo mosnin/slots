@@ -21,7 +21,7 @@ export const [PAST_WINNERS_PDA] = PublicKey.findProgramAddressSync(
 );
 
 export function getProgram(provider: AnchorProvider) {
-  return new Program(IDL as any, PROGRAM_ID, provider);
+  return new Program(IDL as any, provider);
 }
 
 export function lamportsToSol(lamports: number | bigint): string {

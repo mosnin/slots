@@ -126,7 +126,7 @@ export function GameHUD() {
             <button
               className="w-12 h-12 bg-white/10 backdrop-blur rounded-xl border border-white/20 flex items-center justify-center text-white active:bg-white/30 transition-colors"
               onTouchStart={(e) => { e.preventDefault(); }}
-              onClick={() => useGameStore.getState().setPhase && undefined}
+              onClick={() => { /* up handled by touch */ }}
             >
               ↑
             </button>

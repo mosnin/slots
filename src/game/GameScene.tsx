@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera, Stars, Fog } from "@react-three/drei";
+import { PerspectiveCamera, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameStore } from "../store/gameStore";
 import { ChickenMesh } from "./meshes/ChickenMesh";

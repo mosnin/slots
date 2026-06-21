@@ -93,7 +93,7 @@ export function App() {
   // Countdown timer
   useEffect(() => {
     const t = setInterval(() => {
-      setTimeUntilDraw((prev) => Math.max(0, prev - 1));
+      setTimeUntilDraw(Math.max(0, useGameStore.getState().timeUntilDraw - 1));
     }, 1_000);
     return () => clearInterval(t);
   }, []);
