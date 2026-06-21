@@ -39,6 +39,20 @@ create table if not exists winners (
   created_at timestamptz default now()
 );
 
+-- One winner per round — the unique guard that makes payouts idempotent
+-- (a retried/concurrent cron run hits this and aborts before sending SOL).
+create unique index if not exists winners_round_unique on winners(round);
+
+-- Redeemed game sessions — anti-cheat replay protection. Each signed session
+-- token can only be turned into a score once. Service role bypasses RLS, so no
+-- public policies are granted here (table is server-write only).
+create table if not exists used_sessions (
+  session_id text primary key,
+  wallet text not null,
+  used_at timestamptz default now()
+);
+alter table used_sessions enable row level security;
+
 -- Config key-value store
 create table if not exists config (
   key text primary key,
@@ -63,5 +77,7 @@ create policy "public read scores" on scores for select using (true);
 create policy "public read winners" on winners for select using (true);
 create policy "public read config" on config for select using (true);
 
--- Anyone can insert scores (validated server-side)
-create policy "public insert scores" on scores for insert with check (true);
+-- Scores are inserted ONLY by the server (service role, which bypasses RLS)
+-- after anti-cheat validation in /api/score. Drop any legacy public-insert
+-- policy so clients cannot write scores directly with the anon key.
+drop policy if exists "public insert scores" on scores;

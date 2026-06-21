@@ -18,8 +18,25 @@ export function App() {
     setTimeUntilDraw,
     setPlayerRank,
   } = useGameStore();
+  const phase = useGameStore((s) => s.phase);
 
   const nextDrawRef = useRef<number>(Date.now() + 300000);
+  // Anti-cheat: a fresh signed session is issued at the start of every run.
+  const sessionRef = useRef<any>(null);
+
+  // Issue a new session each time a run begins (idle/dead -> playing).
+  useEffect(() => {
+    if (phase !== 'playing' || !publicKey) return;
+    sessionRef.current = null;
+    fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet: publicKey.toBase58() }),
+    })
+      .then((r) => r.json())
+      .then((s) => { sessionRef.current = s; })
+      .catch(() => {});
+  }, [phase, publicKey]);
 
   // Poll Supabase every 10s
   useEffect(() => {
@@ -81,13 +98,25 @@ export function App() {
 
   const handleScoreSubmit = async (score: number, distance: number) => {
     if (score === 0 || !publicKey) return;
+    const session = sessionRef.current;
+    if (!session) {
+      toast.error('No game session — score not saved');
+      return;
+    }
     try {
-      await fetch('/api/score', {
+      const res = await fetch('/api/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: publicKey.toBase58(), score, distance }),
+        body: JSON.stringify({ wallet: publicKey.toBase58(), score, distance, session }),
       });
-      toast.success(`Score ${score.toLocaleString()} saved! 🐔`);
+      // Each session is single-use; clear it so a death can't be re-submitted.
+      sessionRef.current = null;
+      if (res.ok) {
+        toast.success(`Score ${score.toLocaleString()} saved! 🐔`);
+      } else {
+        const { error } = await res.json().catch(() => ({ error: 'rejected' }));
+        toast.error(`Score not saved: ${error}`);
+      }
     } catch {
       toast.error('Failed to save score');
     }
