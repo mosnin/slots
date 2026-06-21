@@ -50,6 +50,23 @@ export async function POST(req: Request) {
     const { error } = await supabase.from('scores').insert({ wallet, score, distance });
     if (error) throw error;
 
+    // 6. Update the player's aggregate stats (games played + personal bests)
+    const { data: u } = await supabase
+      .from('users')
+      .select('games_played, best_score, best_distance')
+      .eq('wallet', wallet)
+      .single();
+    await supabase.from('users').upsert(
+      {
+        wallet,
+        last_seen: new Date().toISOString(),
+        games_played: (u?.games_played ?? 0) + 1,
+        best_score: Math.max(u?.best_score ?? 0, score),
+        best_distance: Math.max(u?.best_distance ?? 0, distance),
+      },
+      { onConflict: 'wallet' }
+    );
+
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

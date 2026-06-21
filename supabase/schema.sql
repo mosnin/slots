@@ -53,6 +53,18 @@ create table if not exists used_sessions (
 );
 alter table used_sessions enable row level security;
 
+-- Players — one row per connected wallet, created on first connect.
+create table if not exists users (
+  wallet text primary key,
+  created_at timestamptz default now(),
+  last_seen timestamptz default now(),
+  games_played integer not null default 0,
+  best_score integer not null default 0,
+  best_distance integer not null default 0
+);
+alter table users enable row level security;
+create policy "public read users" on users for select using (true);
+
 -- Config key-value store
 create table if not exists config (
   key text primary key,

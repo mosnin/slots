@@ -24,6 +24,16 @@ export function App() {
   // Anti-cheat: a fresh signed session is issued at the start of every run.
   const sessionRef = useRef<any>(null);
 
+  // Register / refresh the player record whenever a wallet connects.
+  useEffect(() => {
+    if (!publicKey) return;
+    fetch('/api/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet: publicKey.toBase58() }),
+    }).catch(() => {});
+  }, [publicKey]);
+
   // Issue a new session each time a run begins (idle/dead -> playing).
   useEffect(() => {
     if (phase !== 'playing' || !publicKey) return;

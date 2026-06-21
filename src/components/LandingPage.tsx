@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { WalletMultiButton, useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useGameStore } from "../store/gameStore";
 import { Leaderboard } from "./Leaderboard";
@@ -56,6 +56,13 @@ const FAQ = [
 
 export function LandingPage({ onPlay }: LandingPageProps) {
   const { connected } = useWallet();
+  const { setVisible } = useWalletModal();
+
+  // Require a connected wallet to play — otherwise prompt to connect.
+  const handlePlay = () => {
+    if (connected) onPlay();
+    else setVisible(true);
+  };
   const prizePool = useGameStore((s) => s.prizePool);
   const timeUntilDraw = useGameStore((s) => s.timeUntilDraw);
   const leaderboard = useGameStore((s) => s.leaderboard);
@@ -135,7 +142,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center lg:items-start gap-3">
-              <motion.button whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }} onClick={onPlay}
+              <motion.button whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }} onClick={handlePlay}
                 className="px-10 py-4 rounded-2xl font-display text-2xl text-black font-bold tracking-wider w-full sm:w-auto"
                 style={{ background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 40%, #f97316 100%)', boxShadow: '0 0 50px rgba(251,191,36,0.4), 0 4px 24px rgba(0,0,0,0.5)' }}>
                 🎮 PLAY NOW
@@ -161,7 +168,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
               <div className="relative">
                 <AssetSlot id="hero-trailer.webm" label="Gameplay trailer / hero clip" ratio="16/10" rounded="rounded-none" note="Looping gameplay capture or trailer" />
                 {/* play button overlay */}
-                <button onClick={onPlay} className="absolute inset-0 flex items-center justify-center group">
+                <button onClick={handlePlay} className="absolute inset-0 flex items-center justify-center group">
                   <span className="w-16 h-16 rounded-full bg-yellow-400/90 flex items-center justify-center text-black text-2xl group-hover:scale-110 transition-transform shadow-lg shadow-yellow-400/40">▶</span>
                 </button>
               </div>
@@ -353,7 +360,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           <div className="text-5xl mb-3">🐔</div>
           <h2 className="font-display text-4xl text-white mb-2">THINK YOU CAN CROSS?</h2>
           <p className="text-white/40 text-sm mb-6">The pot is live and the clock is ticking. Be the top chicken.</p>
-          <motion.button whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }} onClick={onPlay}
+          <motion.button whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }} onClick={handlePlay}
             className="px-12 py-4 rounded-2xl font-display text-2xl text-black font-bold tracking-wider"
             style={{ background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 40%, #f97316 100%)', boxShadow: '0 0 50px rgba(251,191,36,0.4)' }}>
             🎮 PLAY NOW
