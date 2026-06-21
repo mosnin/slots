@@ -5,6 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { LandingPage } from './components/LandingPage';
 import { GamePage } from './components/GamePage';
 import { useGameStore } from './store/gameStore';
+import { useChickenBalance } from './hooks/useChickenBalance';
 import { getLeaderboard, getPastWinners, getPrizePool, getNextDraw } from './lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,9 @@ export function App() {
     setPlayerRank,
   } = useGameStore();
   const phase = useGameStore((s) => s.phase);
+
+  // Poll $CHICKEN token balance for eligibility gating
+  useChickenBalance();
 
   const nextDrawRef = useRef<number>(Date.now() + 300000);
   const sessionRef = useRef<any>(null);

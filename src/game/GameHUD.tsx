@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, CHICKEN_TOKEN_THRESHOLD } from '../store/gameStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function formatSOL(n: number) {
@@ -52,6 +52,12 @@ export function GameHUD() {
   const gapToLeader = leaderScore > 0 ? leaderScore - score : null;
   const lastWinner = pastWinners[0];
 
+  const chickenBalance = useGameStore(s => s.chickenBalance);
+  const isEligible = useGameStore(s => s.isEligible);
+  const tokenMintSet = !!process.env.NEXT_PUBLIC_CHICKEN_MINT;
+  // Show ineligibility warning only after balance has been checked and token is deployed
+  const showIneligible = tokenMintSet && chickenBalance !== null && !isEligible;
+
   return (
     <div className="absolute inset-0 pointer-events-none select-none">
 
@@ -95,8 +101,14 @@ export function GameHUD() {
               </div>
             </div>
 
-            {/* Live gap to leader */}
-            {leaderboard.length > 0 && (
+            {/* Eligibility banner or live gap */}
+            {showIneligible ? (
+              <div className="text-center">
+                <span className="bg-orange-500/20 backdrop-blur border border-orange-500/30 rounded-full px-3 py-0.5 text-orange-300 text-[10px] font-bold">
+                  🐔 Practice mode — hold {CHICKEN_TOKEN_THRESHOLD.toLocaleString()} $CHICKEN to win the pot
+                </span>
+              </div>
+            ) : leaderboard.length > 0 ? (
               <div className="text-center">
                 <span className="bg-black/50 backdrop-blur rounded-full px-3 py-0.5 text-white/30 text-[10px]">
                   {liveRank === 1
@@ -107,7 +119,7 @@ export function GameHUD() {
                   }
                 </span>
               </div>
-            )}
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
@@ -228,8 +240,24 @@ export function GameHUD() {
                   </div>
                 </div>
 
-                {/* Leaderboard context */}
-                {playerRank ? (
+                {/* Eligibility callout or leaderboard context */}
+                {showIneligible ? (
+                  <div className="rounded-xl p-3 border border-orange-500/30 mb-4" style={{ background: 'rgba(249,115,22,0.08)' }}>
+                    <div className="text-orange-300 text-sm font-bold">🐔 Practice Mode</div>
+                    <div className="text-white/45 text-xs mt-0.5">
+                      Hold {CHICKEN_TOKEN_THRESHOLD.toLocaleString()} $CHICKEN to compete for the prize pot.
+                      {chickenBalance !== null && chickenBalance > 0 && (
+                        <span className="text-orange-300/70"> You have {Math.floor(chickenBalance).toLocaleString()} — need {(CHICKEN_TOKEN_THRESHOLD - Math.floor(chickenBalance)).toLocaleString()} more.</span>
+                      )}
+                    </div>
+                    {process.env.NEXT_PUBLIC_PUMPFUN_URL && (
+                      <a href={process.env.NEXT_PUBLIC_PUMPFUN_URL} target="_blank" rel="noopener noreferrer"
+                        className="inline-block mt-2 text-[10px] font-bold text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                        Buy $CHICKEN on pump.fun →
+                      </a>
+                    )}
+                  </div>
+                ) : playerRank ? (
                   <div className="rounded-xl p-3 border border-green-400/20 mb-4" style={{ background: 'rgba(34,197,94,0.07)' }}>
                     <div className="text-green-400 text-sm font-bold">🏆 You're ranked #{playerRank} this round!</div>
                     {playerRank === 1

@@ -4,6 +4,8 @@ import { create } from 'zustand';
 
 export type GamePhase = 'idle' | 'playing' | 'dead';
 
+export const CHICKEN_TOKEN_THRESHOLD = 50_000;
+
 export interface LeaderboardEntry {
   wallet: string;
   score: number;
@@ -30,6 +32,9 @@ interface GameStore {
   leaderboard: LeaderboardEntry[];
   pastWinners: PastWinner[];
   playerRank: number | null;
+  // Token gating
+  chickenBalance: number | null;  // null = not yet checked
+  isEligible: boolean;
   setPhase: (phase: GamePhase) => void;
   setScore: (score: number) => void;
   setPrizePool: (amount: number) => void;
@@ -37,6 +42,7 @@ interface GameStore {
   setLeaderboard: (lb: LeaderboardEntry[]) => void;
   setPastWinners: (pw: PastWinner[]) => void;
   setPlayerRank: (rank: number | null) => void;
+  setChickenBalance: (balance: number | null) => void;
   incrementScore: () => void;
   incrementDistance: () => void;
   /** @deprecated alias for incrementDistance — kept for GameScene compatibility */
@@ -53,6 +59,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   leaderboard: [],
   pastWinners: [],
   playerRank: null,
+  chickenBalance: null,
+  isEligible: false,
   setPhase: (phase) => set({ phase }),
   setScore: (score) => set({ score }),
   setPrizePool: (prizePool) => set({ prizePool }),
@@ -60,6 +68,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setPastWinners: (pastWinners) => set({ pastWinners }),
   setPlayerRank: (playerRank) => set({ playerRank }),
+  setChickenBalance: (chickenBalance) => set({
+    chickenBalance,
+    isEligible: chickenBalance !== null && chickenBalance >= CHICKEN_TOKEN_THRESHOLD,
+  }),
   incrementScore: () => set((s) => ({ score: s.score + 100 })),
   incrementDistance: () => set((s) => ({ distance: s.distance + 1 })),
   incrementLane: () => set((s) => ({ distance: s.distance + 1 })),

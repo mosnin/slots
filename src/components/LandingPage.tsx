@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { WalletMultiButton, useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useGameStore } from "../store/gameStore";
+import { useGameStore, CHICKEN_TOKEN_THRESHOLD } from "../store/gameStore";
 import { Leaderboard } from "./Leaderboard";
 import { PastWinnersPanel } from "./PastWinnersPanel";
 import { useState } from "react";
@@ -77,6 +77,10 @@ const FAQ = [
   {
     q: 'Is it fair?',
     a: 'Yes. Scores are validated server-side with HMAC-signed game sessions — you can\'t submit a fake score. Payouts run on an automated schedule with public on-chain transaction receipts.',
+  },
+  {
+    q: `Why do I need ${CHICKEN_TOKEN_THRESHOLD.toLocaleString()} $CHICKEN to win?`,
+    a: `The token-holding requirement ensures the prize pot rewards actual $CHICKEN holders, not random visitors. The prize pot itself is funded by $CHICKEN creator rewards on pump.fun, so it makes sense that holders are the ones competing for it. Anyone can play for free — you just won't win the jackpot without the tokens.`,
   },
   {
     q: 'I don\'t have a Solana wallet — what do I do?',
@@ -452,7 +456,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
         <div className="max-w-4xl mx-auto">
           <h2 className="font-display text-4xl text-center text-white/85 mb-2">HOW IT WORKS</h2>
           <p className="text-white/30 text-sm text-center mb-8">Three steps. That's it.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               {
                 num: '01', icon: '🔗', title: 'Connect Wallet',
@@ -461,13 +465,19 @@ export function LandingPage({ onPlay }: LandingPageProps) {
                 noteHref: 'https://phantom.app',
               },
               {
-                num: '02', icon: '🐔', title: 'Cross the Road',
-                desc: 'Dodge cars, advance lanes, rack up the highest score before the timer hits zero.',
-                note: 'A rising floor creeps up over time — keep moving or die',
+                num: '02', icon: '🐔', title: 'Hold $CHICKEN',
+                desc: `Hold at least ${CHICKEN_TOKEN_THRESHOLD.toLocaleString()} $CHICKEN tokens to compete for the prize pot. Anyone can play — holders win.`,
+                note: 'Buy $CHICKEN on pump.fun',
+                noteHref: process.env.NEXT_PUBLIC_PUMPFUN_URL || undefined,
               },
               {
-                num: '03', icon: '💸', title: 'Win Every 5 Min',
-                desc: 'The top scorer gets the whole prize pot sent automatically. On-chain, no middleman.',
+                num: '03', icon: '🏁', title: 'Cross the Road',
+                desc: 'Dodge cars, advance lanes, rack up the highest score before the timer hits zero.',
+                note: 'A rising floor creeps up — keep moving or get lava\'d',
+              },
+              {
+                num: '04', icon: '💸', title: 'Win Every 5 Min',
+                desc: 'The top eligible scorer gets the whole prize pot sent automatically. On-chain, no middleman.',
                 note: 'Verify every payout on Solscan',
               },
             ].map((step, i) => (
@@ -506,43 +516,64 @@ export function LandingPage({ onPlay }: LandingPageProps) {
         </div>
       </section>
 
-      {/* ─── Characters ─── */}
-      <section id="characters" className="relative z-10 px-5 pb-16">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-8">
-            <span className="text-yellow-400/60 text-xs font-bold uppercase tracking-[0.3em]">Skins · Coming soon</span>
-            <h2 className="font-display text-4xl text-white/85 mt-1">MEET THE FLOCK</h2>
-            <p className="text-white/35 text-sm mt-2 max-w-md mx-auto">Unlock collectible chicken skins. Pure cosmetic — same skill ceiling for everyone.</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {CHARACTERS.map((char, i) => {
-              const style = RARITY_STYLES[char.rarity];
-              return (
-                <motion.div key={char.name} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                  className={`rounded-2xl p-3 border group hover:scale-[1.02] transition-all ${style.border}`}
-                  style={{ background: `linear-gradient(160deg, ${char.bg.replace('from-', '').replace('to-', ', ')})`, boxShadow: style.glow }}>
-                  {/* Character art placeholder — stylized with emoji */}
-                  <div className="aspect-square rounded-xl flex items-center justify-center text-6xl mb-3 relative overflow-hidden"
-                    style={{ background: `radial-gradient(circle at 50% 40%, ${char.tint}22 0%, transparent 70%)`, border: `1px solid ${char.tint}22` }}>
-                    <motion.div
-                      animate={{ y: [0, -4, 0], rotate: [-2, 2, -2] }}
-                      transition={{ repeat: Infinity, duration: 2 + i * 0.3, ease: 'easeInOut' }}
-                    >
-                      {style.emoji}
-                    </motion.div>
-                    <div className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-md font-bold border" style={{ color: char.tint, background: `${char.tint}15`, borderColor: `${char.tint}30` }}>
-                      SOON
+      {/* ─── Token Gating Explainer ─── */}
+      <section className="relative z-10 px-5 pb-16">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-3xl p-8 relative overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(249,115,22,0.06))', border: '1px solid rgba(234,179,8,0.2)' }}
+          >
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 60% -20%, rgba(234,179,8,0.12) 0%, transparent 60%)' }} />
+            <div className="relative grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/25 rounded-full px-3 py-1 mb-4">
+                  <span className="text-yellow-400 text-xs font-bold uppercase tracking-widest">Token Holders Win</span>
+                </div>
+                <h2 className="font-display text-4xl text-white mb-3">HOLD TO COMPETE</h2>
+                <p className="text-white/50 text-sm leading-relaxed mb-4">
+                  Anyone can play for free. But to compete for the prize pot, you need to hold at least <span className="text-yellow-400 font-bold">{CHICKEN_TOKEN_THRESHOLD.toLocaleString()} $CHICKEN</span>. No tokens? You're in practice mode. Your scores won't count toward the jackpot.
+                </p>
+                <p className="text-white/35 text-xs leading-relaxed">
+                  This keeps the prize pool for real holders. Every $CHICKEN trade on pump.fun generates creator rewards that flow directly to the treasury — the pot you're playing for.
+                </p>
+                {process.env.NEXT_PUBLIC_PUMPFUN_URL && (
+                  <a
+                    href={process.env.NEXT_PUBLIC_PUMPFUN_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl font-bold text-sm text-black transition-all hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg, #fde68a, #fbbf24, #f97316)' }}
+                  >
+                    📈 Buy $CHICKEN on pump.fun
+                  </a>
+                )}
+              </div>
+              <div className="space-y-3">
+                {[
+                  { icon: '🎮', label: 'No tokens', desc: 'Play free, practice your skills, see your score — but can\'t win the pot', color: 'text-white/40', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)' },
+                  { icon: '🏆', label: `${CHICKEN_TOKEN_THRESHOLD.toLocaleString()}+ $CHICKEN`, desc: 'Full eligibility — top score when the timer hits zero wins the entire pot', color: 'text-yellow-400', bg: 'rgba(251,191,36,0.07)', border: 'rgba(251,191,36,0.25)' },
+                ].map(tier => (
+                  <div key={tier.label} className="rounded-2xl p-4 flex items-start gap-3" style={{ background: tier.bg, border: `1px solid ${tier.border}` }}>
+                    <span className="text-2xl mt-0.5">{tier.icon}</span>
+                    <div>
+                      <div className={`font-bold text-sm ${tier.color}`}>{tier.label}</div>
+                      <div className="text-white/40 text-xs mt-0.5 leading-relaxed">{tier.desc}</div>
                     </div>
                   </div>
-                  <div className="px-1">
-                    <div className="text-white/80 text-sm font-bold truncate mb-1">{char.name}</div>
-                    <div className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border inline-block mb-2 ${style.badge}`}>● {char.rarity}</div>
-                    <p className="text-white/30 text-[11px] leading-relaxed">{char.desc}</p>
+                ))}
+                <div className="rounded-2xl p-4 flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span className="text-2xl mt-0.5">💸</span>
+                  <div>
+                    <div className="font-bold text-sm text-white/50">Skins (coming soon)</div>
+                    <div className="text-white/30 text-xs mt-0.5 leading-relaxed">Buy chicken skins with USDC → USDC goes into the prize pot → skins give real gameplay advantages</div>
                   </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
