@@ -1,262 +1,298 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
-import { PerspectiveCamera, Stars } from "@react-three/drei";
-import * as THREE from "three";
-import { useGameStore } from "../store/gameStore";
-import { ChickenMesh } from "./meshes/ChickenMesh";
-import { LaneMesh } from "./meshes/LaneMesh";
-import { CarMesh } from "./meshes/CarMesh";
-import { TreeMesh } from "./meshes/TreeMesh";
-import { useMobileControls } from "./hooks/useMobileControls";
-import { useKeyboardControls } from "./hooks/useKeyboardControls";
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { PerspectiveCamera, Stars, Text } from '@react-three/drei';
+import * as THREE from 'three';
+import { useGameStore } from '../store/gameStore';
+import { ChickenMesh } from './meshes/ChickenMesh';
+import { LaneMesh } from './meshes/LaneMesh';
+import { CarMesh } from './meshes/CarMesh';
+import { TreeMesh } from './meshes/TreeMesh';
+import { useMobileControls } from './hooks/useMobileControls';
+import { useKeyboardControls } from './hooks/useKeyboardControls';
+import { useSounds } from './sounds/useSounds';
 
-const LANE_COUNT = 20;
-const LANE_WIDTH = 2.2;
-const SAFE_LANE_INTERVAL = 4;
+const LANE_COUNT = 30;
+const LANE_WIDTH = 2.4;
+const SAFE_EVERY = 4;
 
 interface Car {
   id: number;
   lane: number;
   x: number;
   speed: number;
-  direction: 1 | -1;
+  dir: 1 | -1;
   color: string;
+  type: 'car' | 'truck' | 'bus';
 }
 
-interface Lane {
-  index: number;
-  type: "safe" | "road" | "water";
-  speed: number;
-}
-
-function generateLanes(): Lane[] {
-  const lanes: Lane[] = [{ index: 0, type: "safe", speed: 0 }];
-  for (let i = 1; i < LANE_COUNT; i++) {
-    if (i % SAFE_LANE_INTERVAL === 0) {
-      lanes.push({ index: i, type: "safe", speed: 0 });
-    } else {
-      const speed = 2 + (i / LANE_COUNT) * 6;
-      lanes.push({ index: i, type: "road", speed });
-    }
+function makeLanes() {
+  const types: Array<'safe' | 'road'> = [];
+  for (let i = 0; i < LANE_COUNT; i++) {
+    types.push(i % SAFE_EVERY === 0 ? 'safe' : 'road');
   }
-  return lanes;
+  return types;
 }
 
-const LANES = generateLanes();
-const CAR_COLORS = ["#FF4444", "#4444FF", "#FFFF44", "#FF44FF", "#44FFFF", "#FF8800"];
+const LANES = makeLanes();
+const COLORS = ['#e74c3c','#3498db','#f1c40f','#9b59b6','#1abc9c','#e67e22','#e91e63','#00bcd4'];
+
+function makeCars(): Car[] {
+  const cars: Car[] = [];
+  let id = 0;
+  LANES.forEach((t, i) => {
+    if (t !== 'road') return;
+    const count = 2 + Math.floor(Math.random() * 4);
+    const baseSpeed = 2.5 + (i / LANE_COUNT) * 9;
+    const dir = (i % 2 === 0 ? 1 : -1) as 1 | -1;
+    const vTypes: Array<'car'|'truck'|'bus'> = ['car','car','car','truck','bus'];
+    for (let c = 0; c < count; c++) {
+      cars.push({
+        id: id++,
+        lane: i,
+        x: ((c / count) - 0.5) * 50 + Math.random() * 5,
+        speed: baseSpeed * (0.8 + Math.random() * 0.4),
+        dir,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        type: vTypes[Math.floor(Math.random() * vTypes.length)],
+      });
+    }
+  });
+  return cars;
+}
+
+// Floating score popup
+interface ScorePopup {
+  id: number;
+  x: number;
+  z: number;
+  value: number;
+  age: number;
+}
 
 export function GameScene() {
-  const phase = useGameStore((s) => s.phase);
-  const setPhase = useGameStore((s) => s.setPhase);
-  const incrementScore = useGameStore((s) => s.incrementScore);
-  const incrementLane = useGameStore((s) => s.incrementLane);
-  const score = useGameStore((s) => s.score);
-  const lane = useGameStore((s) => s.lane);
+  const phase = useGameStore(s => s.phase);
+  const setPhase = useGameStore(s => s.setPhase);
+  const incrementScore = useGameStore(s => s.incrementScore);
+  const incrementDistance = useGameStore(s => s.incrementDistance);
+  const score = useGameStore(s => s.score);
 
   const [chickenPos, setChickenPos] = useState({ x: 0, z: 0 });
   const [chickenLane, setChickenLane] = useState(0);
-  const [cars, setCars] = useState<Car[]>([]);
+  const [chickenDir, setChickenDir] = useState<'up'|'down'|'left'|'right'>('up');
+  const [cars, setCars] = useState<Car[]>(() => makeCars());
   const [isMoving, setIsMoving] = useState(false);
+  const [popups, setPopups] = useState<ScorePopup[]>([]);
+  const popupId = useRef(0);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-  const targetCameraY = useRef(5);
-  const targetCameraZ = useRef(8);
+  const camTargetZ = useRef(8);
+  const camTargetY = useRef(5);
+  const chickenPosRef = useRef({ x: 0, z: 0 });
+  const chickenLaneRef = useRef(0);
+  const isDead = useRef(false);
+  const sounds = useSounds();
 
-  // Initialize cars
   useEffect(() => {
-    const initialCars: Car[] = [];
-    let id = 0;
-    LANES.forEach((lane) => {
-      if (lane.type === "road") {
-        const carCount = 2 + Math.floor(Math.random() * 3);
-        for (let c = 0; c < carCount; c++) {
-          initialCars.push({
-            id: id++,
-            lane: lane.index,
-            x: (Math.random() - 0.5) * 40,
-            speed: lane.speed,
-            direction: (Math.random() > 0.5 ? 1 : -1) as 1 | -1,
-            color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
-          });
-        }
+    chickenPosRef.current = chickenPos;
+  }, [chickenPos]);
+
+  useEffect(() => {
+    chickenLaneRef.current = chickenLane;
+  }, [chickenLane]);
+
+  const move = useCallback((dir: 'up'|'down'|'left'|'right') => {
+    if (phase !== 'playing' || isMoving || isDead.current) return;
+    setIsMoving(true);
+    setChickenDir(dir);
+    sounds.playHop();
+    setTimeout(() => setIsMoving(false), 150);
+
+    setChickenPos(prev => {
+      let nx = prev.x;
+      let nz = prev.z;
+      const curLane = chickenLaneRef.current;
+      let nl = curLane;
+
+      if (dir === 'up')        { nz -= LANE_WIDTH; nl = curLane + 1; }
+      else if (dir === 'down') { nz += LANE_WIDTH; nl = Math.max(0, curLane - 1); }
+      else if (dir === 'left') { nx -= 1.8; }
+      else if (dir === 'right'){ nx += 1.8; }
+
+      nx = Math.max(-11, Math.min(11, nx));
+
+      if (dir === 'up' && nl > curLane) {
+        setChickenLane(nl);
+        incrementScore();
+        incrementDistance();
+        // Milestone every 10 lanes
+        if (nl % 10 === 0) sounds.playMilestone();
+        else sounds.playScore();
+
+        // Score popup
+        setPopups(p => [...p.slice(-5), {
+          id: popupId.current++,
+          x: nx,
+          z: nz,
+          value: 100,
+          age: 0,
+        }]);
+
+        camTargetY.current = 5 + nl * 0.15;
+        camTargetZ.current = 8 + nl * 0.3;
+      } else if (dir === 'down') {
+        setChickenLane(nl);
       }
+
+      return { x: nx, z: nz };
     });
-    setCars(initialCars);
-  }, []);
-
-  const move = useCallback(
-    (dir: "up" | "down" | "left" | "right") => {
-      if (phase !== "playing" || isMoving) return;
-      setIsMoving(true);
-      setTimeout(() => setIsMoving(false), 200);
-
-      setChickenPos((prev) => {
-        let nx = prev.x;
-        let nz = prev.z;
-        let nl = chickenLane;
-
-        if (dir === "up") {
-          nz -= LANE_WIDTH;
-          nl = chickenLane + 1;
-        } else if (dir === "down") {
-          nz += LANE_WIDTH;
-          nl = Math.max(0, chickenLane - 1);
-        } else if (dir === "left") {
-          nx -= 1.5;
-        } else if (dir === "right") {
-          nx += 1.5;
-        }
-
-        nx = Math.max(-10, Math.min(10, nx));
-
-        if (dir === "up" && nl > chickenLane) {
-          setChickenLane(nl);
-          incrementScore();
-          incrementLane();
-          targetCameraY.current = 5 + nl * 0.2;
-          targetCameraZ.current = 8 + nl * 0.5;
-        } else if (dir === "down") {
-          setChickenLane(nl);
-        }
-
-        return { x: nx, z: nz };
-      });
-    },
-    [phase, isMoving, chickenLane, incrementScore, incrementLane]
-  );
+  }, [phase, isMoving, incrementScore, incrementDistance, sounds]);
 
   useKeyboardControls(move);
   useMobileControls(move);
 
-  // Move cars and check collisions
   useFrame((_, delta) => {
-    if (phase !== "playing") return;
+    if (phase !== 'playing') return;
 
-    setCars((prev) =>
-      prev.map((car) => {
-        let nx = car.x + car.speed * car.direction * delta;
-        if (nx > 25) nx = -25;
-        if (nx < -25) nx = 25;
-        return { ...car, x: nx };
-      })
+    // Move cars
+    setCars(prev => prev.map(car => {
+      let nx = car.x + car.speed * car.dir * delta;
+      if (nx > 28) nx = -28;
+      if (nx < -28) nx = 28;
+      return { ...car, x: nx };
+    }));
+
+    // Age + remove popups
+    setPopups(prev => prev
+      .map(p => ({ ...p, age: p.age + delta }))
+      .filter(p => p.age < 1.2)
     );
 
     // Collision detection
-    const chickenWorldX = chickenPos.x;
-    const chickenWorldZ = chickenPos.z;
+    if (!isDead.current) {
+      const cx = chickenPosRef.current.x;
+      const cl = chickenLaneRef.current;
 
-    for (const car of cars) {
-      if (car.lane !== chickenLane) continue;
-      const dx = Math.abs(car.x - chickenWorldX);
-      const dz = Math.abs(car.lane * LANE_WIDTH * -1 - chickenWorldZ + 0); // approx
-      if (dx < 1.2 && dz < 0.8) {
-        setPhase("dead");
-        break;
+      for (const car of cars) {
+        if (car.lane !== cl) continue;
+        const carWidth = car.type === 'bus' ? 1.8 : car.type === 'truck' ? 1.5 : 1.1;
+        if (Math.abs(car.x - cx) < carWidth) {
+          isDead.current = true;
+          sounds.playSquash();
+          setPhase('dead');
+          break;
+        }
       }
     }
 
-    // Smooth camera follow
+    // Smooth camera
     if (cameraRef.current) {
-      const targetZ = chickenWorldZ + targetCameraZ.current;
-      const targetY = targetCameraY.current + chickenLane * 0.1;
-      cameraRef.current.position.z +=
-        (targetZ - cameraRef.current.position.z) * 0.08;
-      cameraRef.current.position.y +=
-        (targetY - cameraRef.current.position.y) * 0.08;
-      cameraRef.current.lookAt(
-        new THREE.Vector3(0, 0, chickenWorldZ - 2)
-      );
+      const targetZ = chickenPosRef.current.z + camTargetZ.current;
+      const targetY = camTargetY.current;
+      cameraRef.current.position.z += (targetZ - cameraRef.current.position.z) * 0.07;
+      cameraRef.current.position.y += (targetY - cameraRef.current.position.y) * 0.07;
+      cameraRef.current.position.x += (0 - cameraRef.current.position.x) * 0.05;
+      cameraRef.current.lookAt(new THREE.Vector3(0, 0, chickenPosRef.current.z));
     }
   });
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
+    isDead.current = false;
     setChickenPos({ x: 0, z: 0 });
+    chickenPosRef.current = { x: 0, z: 0 };
     setChickenLane(0);
-    setCars((prev) =>
-      prev.map((car) => ({
-        ...car,
-        x: (Math.random() - 0.5) * 40,
-      }))
-    );
-    setPhase("playing");
-  };
+    chickenLaneRef.current = 0;
+    setCars(makeCars());
+    setPopups([]);
+    camTargetY.current = 5;
+    camTargetZ.current = 8;
+    setPhase('playing');
+  }, [setPhase]);
 
   return (
     <>
       <PerspectiveCamera
         ref={cameraRef}
         makeDefault
-        fov={60}
+        fov={55}
         position={[0, 5, 8]}
         near={0.1}
-        far={200}
+        far={300}
       />
 
-      {/* Lighting */}
-      <ambientLight intensity={0.4} color="#4040ff" />
+      {/* Rich lighting */}
+      <ambientLight intensity={0.5} color="#334466" />
       <directionalLight
-        position={[10, 20, 10]}
-        intensity={1.5}
+        position={[15, 30, 10]}
+        intensity={2}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={50}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
-        color="#fff5e0"
+        color="#fff8f0"
       />
-      <pointLight position={[-5, 5, -5]} intensity={0.5} color="#ff6040" />
+      <directionalLight position={[-10, 10, -5]} intensity={0.4} color="#4466aa" />
+      <pointLight position={[0, 8, chickenPos.z]} color="#ffdd88" intensity={1.5} distance={20} />
 
-      <Stars radius={100} depth={50} count={3000} factor={4} saturation={0.5} fade />
-      <fog attach="fog" args={["#0a0a1a", 20, 60]} />
+      <Stars radius={150} depth={60} count={5000} factor={4} saturation={0.6} fade speed={0.5} />
+      <fog attach="fog" args={['#0a0a1a', 25, 80]} />
 
-      {/* Ground lanes */}
-      {LANES.map((laneData) => (
-        <LaneMesh
-          key={laneData.index}
-          laneIndex={laneData.index}
-          laneType={laneData.type}
-          laneWidth={LANE_WIDTH}
-        />
+      {/* Ground — extended */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -LANE_COUNT * LANE_WIDTH / 2]} receiveShadow>
+        <planeGeometry args={[30, LANE_COUNT * LANE_WIDTH + 20]} />
+        <meshStandardMaterial color="#111122" roughness={0.95} />
+      </mesh>
+
+      {/* Lanes */}
+      {LANES.map((type, i) => (
+        <LaneMesh key={i} laneIndex={i} laneType={type} laneWidth={LANE_WIDTH} />
       ))}
 
       {/* Cars */}
-      {cars.map((car) => (
+      {cars.map(car => (
         <CarMesh
           key={car.id}
           position={[car.x, 0.35, -car.lane * LANE_WIDTH]}
           color={car.color}
-          direction={car.direction}
+          direction={car.dir}
+          type={car.type}
         />
       ))}
 
-      {/* Decorative trees on safe lanes */}
-      {LANES.filter((l) => l.type === "safe").map((laneData) =>
-        [-12, -8, 8, 12].map((tx) => (
-          <TreeMesh
-            key={`tree-${laneData.index}-${tx}`}
-            position={[tx, 0, -laneData.index * LANE_WIDTH]}
-          />
-        ))
+      {/* Trees */}
+      {LANES.map((type, i) =>
+        type === 'safe'
+          ? [-13, -9, 9, 13].map(tx => (
+              <TreeMesh key={`t${i}-${tx}`} position={[tx, 0, -i * LANE_WIDTH]} />
+            ))
+          : null
       )}
+
+      {/* Score popups */}
+      {popups.map(p => (
+        <Text
+          key={p.id}
+          position={[p.x, 1.5 + p.age * 2, p.z]}
+          fontSize={0.5}
+          color="#FFD700"
+          anchorX="center"
+          anchorY="middle"
+          fillOpacity={Math.max(0, 1 - p.age)}
+        >
+          +100
+        </Text>
+      ))}
 
       {/* Chicken */}
       <ChickenMesh
         position={[chickenPos.x, 0.4, chickenPos.z]}
         isMoving={isMoving}
-        isDead={phase === "dead"}
+        isDead={phase === 'dead'}
+        direction={chickenDir}
       />
 
-      {/* Click to start overlay (invisible plane) */}
-      {phase === "idle" && (
-        <mesh
-          position={[0, 0.1, 4]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          onClick={startGame}
-        >
-          <planeGeometry args={[30, 10]} />
+      {/* Invisible tap-to-start plane */}
+      {phase === 'idle' && (
+        <mesh position={[0, 0.5, 3]} rotation={[-Math.PI / 2, 0, 0]} onClick={startGame}>
+          <planeGeometry args={[40, 20]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
       )}

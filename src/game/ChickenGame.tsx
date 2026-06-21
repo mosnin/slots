@@ -8,17 +8,17 @@ import { GameHUD } from "./GameHUD";
 import { useGameStore } from "../store/gameStore";
 
 interface ChickenGameProps {
-  onScoreSubmit?: (score: number, lane: number) => void;
+  onScoreSubmit?: (score: number, distance: number) => void;
 }
 
 export function ChickenGame({ onScoreSubmit }: ChickenGameProps) {
   const phase = useGameStore((s) => s.phase);
   const score = useGameStore((s) => s.score);
-  const lane = useGameStore((s) => s.lane);
+  const distance = useGameStore((s) => s.distance);
 
   useEffect(() => {
     if (phase === "dead" && onScoreSubmit) {
-      onScoreSubmit(score, lane);
+      onScoreSubmit(score, distance);
     }
   }, [phase]);
 

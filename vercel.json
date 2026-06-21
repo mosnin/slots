@@ -1,4 +1,9 @@
 {
   "framework": "nextjs",
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "crons": [
+    {
+      "path": "/api/cron/distribute",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

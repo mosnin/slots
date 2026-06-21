@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import { useGameStore } from "../store/gameStore";
 
-function timeAgo(ts: number): string {
-  const diff = Math.floor(Date.now() / 1000) - ts;
+function timeAgo(isoString: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -33,8 +33,7 @@ export function PastWinnersPanel() {
             First winner coming soon!
           </div>
         ) : (
-          [...pastWinners]
-            .reverse()
+          pastWinners
             .slice(0, 10)
             .map((winner, i) => (
               <motion.div
@@ -49,15 +48,15 @@ export function PastWinnersPanel() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-white text-sm font-medium truncate">
-                    {winner.player.slice(0, 6)}...{winner.player.slice(-4)}
+                    {winner.wallet.slice(0, 6)}...{winner.wallet.slice(-4)}
                   </div>
                   <div className="text-white/30 text-xs">
-                    Round {winner.round} • {timeAgo(winner.timestamp)}
+                    Round {winner.round} • {timeAgo(winner.created_at)}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-green-400 font-bold text-sm">
-                    +{(winner.amount / 1e9).toFixed(4)} SOL
+                    +{Number(winner.amount_sol).toFixed(4)} SOL
                   </div>
                   <div className="text-white/30 text-xs">
                     Score: {winner.score.toLocaleString()}

@@ -1,131 +1,106 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { AnchorProvider } from "@coral-xyz/anchor";
-import { LandingPage } from "./components/LandingPage";
-import { GamePage } from "./components/GamePage";
-import { useGameStore } from "./store/gameStore";
-import {
-  fetchGameState,
-  fetchPastWinners,
-  submitScore,
-  lamportsToSol,
-  GAME_STATE_PDA,
-} from "./lib/solana";
-import toast from "react-hot-toast";
+import { useState, useEffect, useRef } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { LandingPage } from './components/LandingPage';
+import { GamePage } from './components/GamePage';
+import { useGameStore } from './store/gameStore';
+import { getLeaderboard, getPastWinners, getPrizePool, getNextDraw } from './lib/supabase';
+import toast from 'react-hot-toast';
 
 export function App() {
-  const [page, setPage] = useState<"landing" | "game">("landing");
-  const { publicKey, signTransaction, signAllTransactions } = useWallet();
-  const { connection } = useConnection();
-
+  const [page, setPage] = useState<'landing' | 'game'>('landing');
+  const { publicKey } = useWallet();
   const {
     setLeaderboard,
     setPastWinners,
     setPrizePool,
     setTimeUntilDraw,
     setPlayerRank,
-    phase,
   } = useGameStore();
 
-  // Build provider when wallet is connected
-  const getProvider = () => {
-    if (!publicKey || !signTransaction || !signAllTransactions) return null;
-    return new AnchorProvider(
-      connection,
-      { publicKey, signTransaction, signAllTransactions },
-      { commitment: "confirmed" }
-    );
-  };
+  const nextDrawRef = useRef<number>(Date.now() + 300000);
 
-  // Poll game state every 10s
+  // Poll Supabase every 10s
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-
     const refresh = async () => {
-      const provider = getProvider();
-      if (!provider) return;
-
       try {
-        const state = await fetchGameState(provider);
-        if (!state) return;
+        const [lb, winners, pool, nextDraw] = await Promise.all([
+          getLeaderboard(),
+          getPastWinners(),
+          getPrizePool(),
+          getNextDraw(),
+        ]);
 
-        const lb = state.leaderboard
-          .filter((e: any) => e.score.toNumber() > 0)
-          .map((e: any) => ({
-            player: e.player.toBase58(),
-            score: e.score.toNumber(),
-            lane: e.lane.toNumber(),
-            timestamp: e.timestamp.toNumber(),
-          }));
-
-        setLeaderboard(lb);
-        setPrizePool(state.prizePool.toNumber());
-
-        const now = Math.floor(Date.now() / 1000);
-        const elapsed = now - state.lastDistribution.toNumber();
-        setTimeUntilDraw(Math.max(0, 300 - elapsed));
-
-        if (publicKey) {
-          const rank = lb.findIndex((e: any) => e.player === publicKey.toBase58());
-          setPlayerRank(rank >= 0 ? rank + 1 : null);
-        }
-
-        const winners = await fetchPastWinners(provider);
-        setPastWinners(
-          winners.map((w: any) => ({
-            player: w.player.toBase58(),
-            score: w.score.toNumber(),
-            amount: w.amount.toNumber(),
-            round: w.round.toNumber(),
-            timestamp: w.timestamp.toNumber(),
+        setLeaderboard(
+          lb.map((e: any) => ({
+            wallet: e.wallet,
+            score: e.score,
+            distance: e.distance,
+            last_played: e.last_played,
           }))
         );
+
+        setPastWinners(
+          winners.map((w: any) => ({
+            wallet: w.wallet,
+            score: w.score,
+            distance: w.distance,
+            amount_sol: w.amount_sol,
+            tx_signature: w.tx_signature,
+            round: w.round,
+            created_at: w.created_at,
+          }))
+        );
+
+        setPrizePool(pool);
+        nextDrawRef.current = nextDraw;
+
+        if (publicKey) {
+          const rank = lb.findIndex((e: any) => e.wallet === publicKey.toBase58());
+          setPlayerRank(rank >= 0 ? rank + 1 : null);
+        }
       } catch (e) {
         // silently ignore fetch errors
       }
     };
 
     refresh();
-    timer = setInterval(refresh, 10_000);
-    return () => clearInterval(timer);
-  }, [publicKey, signTransaction, signAllTransactions]);
+    const t = setInterval(refresh, 10_000);
+    return () => clearInterval(t);
+  }, [publicKey]);
 
   // Countdown timer
   useEffect(() => {
     const t = setInterval(() => {
-      setTimeUntilDraw(Math.max(0, useGameStore.getState().timeUntilDraw - 1));
+      const remaining = Math.max(0, Math.floor((nextDrawRef.current - Date.now()) / 1000));
+      setTimeUntilDraw(remaining);
     }, 1_000);
     return () => clearInterval(t);
   }, []);
 
-  const handleScoreSubmit = async (score: number, lane: number) => {
-    if (score === 0) return;
-    const provider = getProvider();
-    if (!provider) {
-      toast.error("Connect wallet to save your score");
-      return;
-    }
+  const handleScoreSubmit = async (score: number, distance: number) => {
+    if (score === 0 || !publicKey) return;
     try {
-      toast.loading("Saving score on-chain...", { id: "score" });
-      await submitScore(provider, score, lane);
-      toast.success(`Score ${score} saved! 🐔`, { id: "score" });
-    } catch (e: any) {
-      toast.error(e.message?.slice(0, 60) || "Failed to save score", {
-        id: "score",
+      await fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: publicKey.toBase58(), score, distance }),
       });
+      toast.success(`Score ${score.toLocaleString()} saved! 🐔`);
+    } catch {
+      toast.error('Failed to save score');
     }
   };
 
-  if (page === "game") {
+  if (page === 'game') {
     return (
       <GamePage
-        onBack={() => setPage("landing")}
+        onBack={() => setPage('landing')}
         onScoreSubmit={handleScoreSubmit}
       />
     );
   }
 
-  return <LandingPage onPlay={() => setPage("game")} />;
+  return <LandingPage onPlay={() => setPage('game')} />;
 }

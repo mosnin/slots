@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "../store/gameStore";
-import { lamportsToSol } from "../lib/solana";
 
 export function PrizePotDisplay() {
   const prizePool = useGameStore((s) => s.prizePool);
@@ -38,10 +37,10 @@ export function PrizePotDisplay() {
               animate={{ scale: 1, color: "#FFFFFF" }}
               className="font-display text-6xl text-white"
             >
-              {lamportsToSol(prizePool)} SOL
+              {prizePool.toFixed(4)} SOL
             </motion.div>
             <div className="text-yellow-400/60 text-sm mt-1">
-              ≈ ${(Number(lamportsToSol(prizePool)) * 180).toFixed(2)} USD
+              ≈ ${(prizePool * 180).toFixed(2)} USD
             </div>
           </div>
 
@@ -71,7 +70,7 @@ export function PrizePotDisplay() {
                 </div>
                 <div>
                   <div className="text-white text-sm font-medium">
-                    {topPlayer.player.slice(0, 6)}...{topPlayer.player.slice(-4)}
+                    {topPlayer.wallet.slice(0, 6)}...{topPlayer.wallet.slice(-4)}
                   </div>
                   <div className="text-white/40 text-xs">Current Leader</div>
                 </div>

@@ -30,10 +30,10 @@ export function Leaderboard() {
           </div>
         ) : (
           leaderboard.slice(0, 10).map((entry, i) => {
-            const isMe = publicKey?.toBase58() === entry.player;
+            const isMe = publicKey?.toBase58() === entry.wallet;
             return (
               <motion.div
-                key={entry.player}
+                key={entry.wallet}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
@@ -54,7 +54,7 @@ export function Leaderboard() {
                       isMe ? "text-yellow-400" : "text-white"
                     }`}
                   >
-                    {entry.player.slice(0, 6)}...{entry.player.slice(-4)}
+                    {entry.wallet.slice(0, 6)}...{entry.wallet.slice(-4)}
                     {isMe && (
                       <span className="ml-1 text-yellow-400/60 text-xs">
                         (you)
@@ -62,7 +62,7 @@ export function Leaderboard() {
                     )}
                   </div>
                   <div className="text-white/30 text-xs">
-                    Lane {entry.lane}
+                    Distance {entry.distance}
                   </div>
                 </div>
                 <div className="text-right shrink-0">

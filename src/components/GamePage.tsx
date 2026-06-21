@@ -8,11 +8,10 @@ const ChickenGame = dynamic(
 import { motion } from "framer-motion";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useGameStore } from "../store/gameStore";
-import { lamportsToSol } from "../lib/solana";
 
 interface GamePageProps {
   onBack: () => void;
-  onScoreSubmit: (score: number, lane: number) => void;
+  onScoreSubmit: (score: number, distance: number) => void;
 }
 
 export function GamePage({ onBack, onScoreSubmit }: GamePageProps) {
@@ -36,7 +35,7 @@ export function GamePage({ onBack, onScoreSubmit }: GamePageProps) {
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-1">
             <span className="text-green-400 font-bold">
-              {lamportsToSol(prizePool)} SOL
+              {prizePool.toFixed(4)} SOL
             </span>
             <span className="text-white/30">pot</span>
           </div>
@@ -58,12 +57,12 @@ export function GamePage({ onBack, onScoreSubmit }: GamePageProps) {
           <span className="text-white/30 text-xs shrink-0">TOP:</span>
           {leaderboard.slice(0, 5).map((entry, i) => (
             <div
-              key={entry.player}
+              key={entry.wallet}
               className="flex items-center gap-1 shrink-0"
             >
               <span className="text-yellow-400 text-xs">#{i + 1}</span>
               <span className="text-white/60 text-xs">
-                {entry.player.slice(0, 4)}...{entry.player.slice(-4)}
+                {entry.wallet.slice(0, 4)}...{entry.wallet.slice(-4)}
               </span>
               <span className="text-white text-xs font-bold">
                 {entry.score.toLocaleString()}

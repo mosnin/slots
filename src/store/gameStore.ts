@@ -1,28 +1,30 @@
 'use client';
 
-import { create } from "zustand";
+import { create } from 'zustand';
 
-export type GamePhase = "idle" | "playing" | "dead" | "won";
+export type GamePhase = 'idle' | 'playing' | 'dead';
 
 export interface LeaderboardEntry {
-  player: string;
+  wallet: string;
   score: number;
-  lane: number;
-  timestamp: number;
+  distance: number;
+  last_played: string;
 }
 
 export interface PastWinner {
-  player: string;
+  wallet: string;
   score: number;
-  amount: number;
+  distance: number;
+  amount_sol: number;
+  tx_signature: string | null;
   round: number;
-  timestamp: number;
+  created_at: string;
 }
 
 interface GameStore {
   phase: GamePhase;
   score: number;
-  lane: number;
+  distance: number;
   prizePool: number;
   timeUntilDraw: number;
   leaderboard: LeaderboardEntry[];
@@ -30,21 +32,22 @@ interface GameStore {
   playerRank: number | null;
   setPhase: (phase: GamePhase) => void;
   setScore: (score: number) => void;
-  setLane: (lane: number) => void;
   setPrizePool: (amount: number) => void;
   setTimeUntilDraw: (t: number) => void;
   setLeaderboard: (lb: LeaderboardEntry[]) => void;
   setPastWinners: (pw: PastWinner[]) => void;
   setPlayerRank: (rank: number | null) => void;
   incrementScore: () => void;
+  incrementDistance: () => void;
+  /** @deprecated alias for incrementDistance — kept for GameScene compatibility */
   incrementLane: () => void;
   resetGame: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  phase: "idle",
+  phase: 'idle',
   score: 0,
-  lane: 0,
+  distance: 0,
   prizePool: 0,
   timeUntilDraw: 300,
   leaderboard: [],
@@ -52,13 +55,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playerRank: null,
   setPhase: (phase) => set({ phase }),
   setScore: (score) => set({ score }),
-  setLane: (lane) => set({ lane }),
-  setPrizePool: (amount) => set({ prizePool: amount }),
-  setTimeUntilDraw: (t) => set({ timeUntilDraw: t }),
+  setPrizePool: (prizePool) => set({ prizePool }),
+  setTimeUntilDraw: (timeUntilDraw) => set({ timeUntilDraw }),
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setPastWinners: (pastWinners) => set({ pastWinners }),
   setPlayerRank: (playerRank) => set({ playerRank }),
   incrementScore: () => set((s) => ({ score: s.score + 100 })),
-  incrementLane: () => set((s) => ({ lane: s.lane + 1 })),
-  resetGame: () => set({ phase: "idle", score: 0, lane: 0 }),
+  incrementDistance: () => set((s) => ({ distance: s.distance + 1 })),
+  incrementLane: () => set((s) => ({ distance: s.distance + 1 })),
+  resetGame: () => set({ phase: 'idle', score: 0, distance: 0 }),
 }));
