@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Build Check
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,29 +18,7 @@ jobs:
 
       - run: npm install --legacy-peer-deps
 
-      - name: Build
+      - name: Type check & build
         run: npm run build
         env:
-          VITE_RPC_URL: ${{ secrets.VITE_RPC_URL }}
-
-      - name: Deploy to Vercel (Production)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          npm i -g vercel
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy Preview (PR)
-        if: github.event_name == 'pull_request'
-        run: |
-          npm i -g vercel
-          vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-          vercel build --token=${{ secrets.VERCEL_TOKEN }}
-          vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VITE_RPC_URL: https://api.devnet.solana.com
