@@ -62,7 +62,7 @@ function makeCars(canvasW: number): Car[] {
     const count = 2 + Math.floor(diff * 4); // 2-6
     const baseSpeed = 55 + diff * 140;      // 55-195 px/s
     const dir: 1 | -1 = lane % 2 === 0 ? 1 : -1;
-    const carW = 42 + Math.floor(Math.random() * 32);
+    const carW = 60 + Math.floor(Math.random() * 38); // longer, car-shaped
     for (let c = 0; c < count; c++) {
       cars.push({
         id: id++,
@@ -122,54 +122,126 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.restore();
 }
 
+function shade(hex: string, amt: number): string {
+  // amt > 0 lightens, < 0 darkens
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  r = Math.max(0, Math.min(255, r + amt));
+  g = Math.max(0, Math.min(255, g + amt));
+  b = Math.max(0, Math.min(255, b + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
 function drawCar(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, h: number, color: string, dir: 1 | -1) {
   const x = cx - w / 2;
   const y = cy - h / 2;
+  // The car travels along X, so w = car length, h = car width.
 
   ctx.save();
-  // Body
-  ctx.fillStyle = color;
-  ctx.shadowColor = color + '55';
-  ctx.shadowBlur = 8;
-  roundRect(ctx, x, y, w, h, 6);
-  ctx.fill();
-  ctx.shadowBlur = 0;
 
-  // Roof / windshield area
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  const roofW = w * 0.46;
-  const roofX = x + (w - roofW) / 2;
-  roundRect(ctx, roofX, y + h * 0.12, roofW, h * 0.48, 4);
+  // Ground shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  roundRect(ctx, x + 2, y + 4, w, h, h * 0.4);
   ctx.fill();
 
-  // Wheels
-  ctx.fillStyle = '#1a1a1a';
-  const wr = 5.5;
-  [[x + w * 0.18, y + wr], [x + w * 0.82, y + wr],
-   [x + w * 0.18, y + h - wr], [x + w * 0.82, y + h - wr]].forEach(([wx, wy]) => {
-    ctx.beginPath();
-    ctx.arc(wx as number, wy as number, wr, 0, Math.PI * 2);
+  // Wheels — poke out top & bottom edges, near front & rear
+  ctx.fillStyle = '#15151a';
+  const wheelW = w * 0.16;
+  const wheelH = 5;
+  [w * 0.16, w * 0.66].forEach((wx) => {
+    roundRect(ctx, x + wx, y - 2, wheelW, wheelH, 2);
     ctx.fill();
-    ctx.fillStyle = '#555';
-    ctx.beginPath();
-    ctx.arc(wx as number, wy as number, wr * 0.5, 0, Math.PI * 2);
+    roundRect(ctx, x + wx, y + h - wheelH + 2, wheelW, wheelH, 2);
     ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
   });
 
-  // Headlights (front)
-  const hlX = dir === 1 ? x + w - 5 : x + 5;
-  ctx.fillStyle = 'rgba(255,250,200,0.95)';
-  ctx.shadowColor = '#fffde7';
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.arc(hlX, y + h * 0.28, 4, 0, Math.PI * 2);
+  // Body with a length-wise gradient for a rounded, glossy look
+  const bodyGrad = ctx.createLinearGradient(0, y, 0, y + h);
+  bodyGrad.addColorStop(0, shade(color, 35));
+  bodyGrad.addColorStop(0.5, color);
+  bodyGrad.addColorStop(1, shade(color, -35));
+  ctx.fillStyle = bodyGrad;
+  roundRect(ctx, x, y, w, h, h * 0.42);
   ctx.fill();
-  ctx.beginPath();
-  ctx.arc(hlX, y + h * 0.72, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
 
+  // Hood/nose taper at the front (so it reads as a car, not a brick)
+  const noseX = dir === 1 ? x + w * 0.82 : x + w * 0.02;
+  ctx.fillStyle = shade(color, -15);
+  roundRect(ctx, noseX, y + h * 0.16, w * 0.16, h * 0.68, h * 0.3);
+  ctx.fill();
+
+  // Cabin / windows (glass)
+  const glass = ctx.createLinearGradient(0, y, 0, y + h);
+  glass.addColorStop(0, 'rgba(180,225,255,0.85)');
+  glass.addColorStop(1, 'rgba(70,110,150,0.9)');
+  ctx.fillStyle = glass;
+  // windshield + rear window: two panes with a roof bar between
+  const cabX = x + w * 0.30;
+  const cabW = w * 0.40;
+  roundRect(ctx, cabX, y + h * 0.18, cabW * 0.42, h * 0.64, 3);
+  ctx.fill();
+  roundRect(ctx, cabX + cabW * 0.58, y + h * 0.18, cabW * 0.42, h * 0.64, 3);
+  ctx.fill();
+
+  // Roof highlight strip
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  roundRect(ctx, x + w * 0.12, y + h * 0.40, w * 0.76, h * 0.18, 3);
+  ctx.fill();
+
+  // Side mirrors
+  ctx.fillStyle = shade(color, -25);
+  const mirX = dir === 1 ? cabX - 2 : cabX + cabW;
+  ctx.fillRect(mirX, y - 1, 4, 3);
+  ctx.fillRect(mirX, y + h - 2, 4, 3);
+
+  // Headlights (front) + taillights (rear)
+  const frontX = dir === 1 ? x + w - 3 : x + 3;
+  const rearX = dir === 1 ? x + 3 : x + w - 3;
+  ctx.fillStyle = 'rgba(255,248,200,0.98)';
+  ctx.shadowColor = '#fff7c0';
+  ctx.shadowBlur = 7;
+  ctx.beginPath(); ctx.arc(frontX, y + h * 0.28, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(frontX, y + h * 0.72, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,60,40,0.9)';
+  ctx.beginPath(); ctx.arc(rearX, y + h * 0.28, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(rearX, y + h * 0.72, 2.2, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+// A wooden log lying across a safe lane
+function drawLog(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.save();
+  // body
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, '#a9784a');
+  g.addColorStop(0.5, '#8a5a32');
+  g.addColorStop(1, '#6e451f');
+  ctx.fillStyle = g;
+  roundRect(ctx, x, y, w, h, h * 0.5);
+  ctx.fill();
+
+  // bark grain lines
+  ctx.strokeStyle = 'rgba(70,40,18,0.5)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x + h * 0.6, y + (h * i) / 3);
+    ctx.lineTo(x + w - h * 0.6, y + (h * i) / 3);
+    ctx.stroke();
+  }
+
+  // cut-end rings on both ends
+  [x + h * 0.5, x + w - h * 0.5].forEach((ex) => {
+    ctx.fillStyle = '#c79a63';
+    ctx.beginPath(); ctx.ellipse(ex, y + h / 2, h * 0.42, h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(110,69,31,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(ex, y + h / 2, h * 0.26, h * 0.26, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(ex, y + h / 2, h * 0.12, h * 0.12, 0, 0, Math.PI * 2); ctx.stroke();
+  });
   ctx.restore();
 }
 
@@ -464,21 +536,37 @@ export function GameScene() {
 
         if (type === 'safe') {
           const g = ctx.createLinearGradient(0, top, 0, top + LANE_H);
-          g.addColorStop(0, '#5aa63c');
-          g.addColorStop(1, '#4a8f30');
+          g.addColorStop(0, '#6cb83f');
+          g.addColorStop(1, '#539a33');
           ctx.fillStyle = g;
           ctx.fillRect(0, top, W, LANE_H);
 
-          // Grass blade dots
-          ctx.fillStyle = 'rgba(255,255,180,0.55)';
-          for (let fx = 20 + (i * 37 % 20); fx < W; fx += 55) {
+          // Grass tufts (little V blades, deterministic per lane)
+          ctx.strokeStyle = 'rgba(40,110,30,0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.lineCap = 'round';
+          for (let fx = 12 + ((i * 31) % 26); fx < W; fx += 34) {
+            const gy = top + 10 + ((fx * 7 + i * 13) % (LANE_H - 20));
             ctx.beginPath();
-            ctx.arc(fx, top + LANE_H / 2, 2.5, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.moveTo(fx, gy); ctx.lineTo(fx - 2.5, gy - 5);
+            ctx.moveTo(fx, gy); ctx.lineTo(fx + 2.5, gy - 5);
+            ctx.moveTo(fx, gy); ctx.lineTo(fx, gy - 6);
+            ctx.stroke();
           }
-          // Edge stripe
-          ctx.fillStyle = 'rgba(100,180,60,0.6)';
+
+          // Wooden logs lying across the bank (1-2 per safe lane)
+          const logCount = i % 8 === 0 ? 2 : 1;
+          for (let l = 0; l < logCount; l++) {
+            const seed = (i * 97 + l * 251) % 100;
+            const logW = 70 + (seed % 60);
+            const lx = ((seed * 53) % Math.max(1, W - logW));
+            drawLog(ctx, lx, top + LANE_H / 2 - 9 + (l ? 6 : -6), logW, 18);
+          }
+
+          // Soil edge stripes
+          ctx.fillStyle = 'rgba(90,160,55,0.7)';
           ctx.fillRect(0, top, W, 3);
+          ctx.fillStyle = 'rgba(60,40,22,0.4)';
           ctx.fillRect(0, top + LANE_H - 3, W, 3);
         } else {
           // Road
