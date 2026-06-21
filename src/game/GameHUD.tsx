@@ -280,12 +280,52 @@ export function GameHUD() {
                 >
                   🐔 TRY AGAIN
                 </button>
+
+                <button
+                  onClick={() => {
+                    const text = `🐔 I scored ${score.toLocaleString()} pts on Chicken Road! Cross the road, win real SOL every 5 min. Can you beat me?`;
+                    const url = typeof window !== 'undefined' ? window.location.origin : '';
+                    window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+                  }}
+                  className="w-full mt-2 py-2.5 rounded-2xl text-sm font-bold transition-all active:scale-95 border border-white/10 text-white/50 hover:text-white hover:border-white/20"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                >
+                  𝕏 Share score
+                </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* ── Floating D-pad (mobile only, bottom-left, translucent overlay) ── */}
+      {phase === 'playing' && (
+        <div className="absolute bottom-4 left-3 pointer-events-auto md:hidden" data-dpad>
+          <div className="grid grid-cols-3 gap-1">
+            {([[null, '↑', null], ['←', '↓', '→']] as (string | null)[][]).map((row, ri) =>
+              row.map((btn, ci) =>
+                btn ? (
+                  <button
+                    key={`${ri}-${ci}`}
+                    data-dpad
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white/80 text-sm font-bold active:scale-90 transition-transform"
+                    style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(6px)' }}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      const dir = ({ '↑': 'up', '↓': 'down', '←': 'left', '→': 'right' } as Record<string, string>)[btn];
+                      if (dir) window.dispatchEvent(new CustomEvent('dpad', { detail: dir }));
+                    }}
+                  >
+                    {btn}
+                  </button>
+                ) : (
+                  <div key={`${ri}-${ci}`} />
+                )
+              )
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

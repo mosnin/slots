@@ -435,7 +435,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           {[
             { icon: '👥', value: `${leaderboard.length}`, label: 'Players' },
             { icon: '🔄', value: `${pastWinners.length}`, label: 'Rounds' },
-            { icon: '💸', value: totalPaidOut > 0 ? `${totalPaidOut.toFixed(2)}◎` : '0◎', label: 'Paid Out' },
+            { icon: '💸', value: totalPaidOut > 0 ? `${totalPaidOut.toFixed(2)}◎` : '—', label: 'Paid Out' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
               className="rounded-2xl p-4 text-center border border-white/5" style={{ background: 'rgba(255,255,255,0.025)' }}>
@@ -451,7 +451,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       <section id="how-it-works" className="relative z-10 px-5 pb-16">
         <div className="max-w-4xl mx-auto">
           <h2 className="font-display text-4xl text-center text-white/85 mb-2">HOW IT WORKS</h2>
-          <p className="text-white/30 text-sm text-center mb-8">Three steps. No bullshit.</p>
+          <p className="text-white/30 text-sm text-center mb-8">Three steps. That's it.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {
@@ -490,7 +490,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       {/* ─── Features ─── */}
       <section className="relative z-10 px-5 pb-16">
         <div className="max-w-5xl mx-auto">
-          <h2 className="font-display text-4xl text-center text-white/85 mb-8">WHY IT SLAPS</h2>
+          <h2 className="font-display text-4xl text-center text-white/85 mb-8">WHY IT WORKS</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {FEATURES.map((f, i) => (
               <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
@@ -581,7 +581,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
         <div className="max-w-3xl mx-auto rounded-3xl p-10 text-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.12), rgba(249,115,22,0.08))', border: '1px solid rgba(251,191,36,0.2)' }}>
           <motion.div animate={{ rotate: [0, -5, 5, 0] }} transition={{ repeat: Infinity, duration: 3 }} className="text-5xl mb-3">🐔</motion.div>
           <h2 className="font-display text-4xl text-white mb-2">THINK YOU CAN CROSS?</h2>
-          <p className="text-white/40 text-sm mb-6">The pot is live and the clock is ticking. Be the top chicken.</p>
+          <p className="text-white/40 text-sm mb-6">The pot is live and the clock is ticking. Be the last one standing.</p>
           <motion.button
             whileHover={{ scale: 1.04, y: -2 }}
             whileTap={{ scale: 0.97 }}
@@ -615,7 +615,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
               <a href={process.env.NEXT_PUBLIC_PUMPFUN_URL} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">pump.fun</a>
             )}
           </div>
-          <span className="text-white/20 text-xs">chickengame.wtf · No house edge · Powered by $CHICKEN</span>
+          <span className="text-white/20 text-xs">chickengame.wtf · On-chain payouts · Powered by $CHICKEN</span>
         </div>
       </footer>
     </div>

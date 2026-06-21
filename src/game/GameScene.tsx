@@ -349,6 +349,8 @@ export function GameScene() {
   const scrollFloorRef = useRef(-BASE_LANE_H * 2);
   const scrollTimeRef = useRef(0);
   const isDead = useRef(false);
+  const shakeRef = useRef({ x: 0, y: 0, dur: 0, total: 0.28 });
+  const freezeRef = useRef({ active: false, timeLeft: 0 });
   const phaseRef = useRef<'idle' | 'playing' | 'dead'>('idle');
   const rafRef = useRef(0);
   const lastTRef = useRef(0);
@@ -458,10 +460,30 @@ export function GameScene() {
       const laneH = laneHRef.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+      // Screen shake — decay over duration
+      if (shakeRef.current.dur > 0) {
+        shakeRef.current.dur = Math.max(0, shakeRef.current.dur - dt);
+        const progress = shakeRef.current.dur / shakeRef.current.total;
+        const mag = progress * 15;
+        shakeRef.current.x = (Math.random() - 0.5) * 2 * mag;
+        shakeRef.current.y = (Math.random() - 0.5) * 2 * mag;
+      } else {
+        shakeRef.current.x = 0;
+        shakeRef.current.y = 0;
+      }
+      ctx.translate(shakeRef.current.x, shakeRef.current.y);
+
       const phase = phaseRef.current;
 
       // ── UPDATE ──────────────────────────────────────────────
       if (phase === 'playing' && !isDead.current) {
+        // Freeze frame on collision — skip update for a brief moment
+        if (freezeRef.current.active) {
+          freezeRef.current.timeLeft -= dt;
+          if (freezeRef.current.timeLeft <= 0) freezeRef.current.active = false;
+          rafRef.current = requestAnimationFrame(loop); return;
+        }
+
         carsRef.current = carsRef.current.map(car => {
           let nx = car.x + car.speed * car.dir * dt;
           if (nx > W + 250) nx = -250;
@@ -501,6 +523,8 @@ export function GameScene() {
         if (laneWorldY(chickRef.current.lane, laneH) < scrollFloorRef.current - laneH * 0.5) {
           isDead.current = true;
           sounds.playSquash();
+          shakeRef.current = { x: 0, y: 0, dur: 0.28, total: 0.28 };
+          freezeRef.current = { active: true, timeLeft: 0.18 };
           setPhase('dead');
         }
 
@@ -517,6 +541,8 @@ export function GameScene() {
           if (Math.abs(carCX - cx) < car.w / 2 + CHICKEN_W / 2 - 4) {
             isDead.current = true;
             sounds.playSquash();
+            shakeRef.current = { x: 0, y: 0, dur: 0.28, total: 0.28 };
+            freezeRef.current = { active: true, timeLeft: 0.18 };
             setPhase('dead');
             break;
           }
@@ -651,14 +677,29 @@ export function GameScene() {
           ctx.stroke();
           ctx.restore();
 
-          // Heat bleed upward
+          // Danger proximity system — intensifies as lava approaches chicken
           if (floorScreenY > 0) {
-            const warnH = Math.min(90, floorScreenY);
+            const chickSy = wts(laneWorldY(chickRef.current.lane, laneH));
+            const dangerDist = chickSy - floorScreenY;
+            const dangerProgress = Math.max(0, Math.min(1, 1 - dangerDist / (laneH * 4)));
+
+            // Heat bleed — scales with proximity
+            const warnH = Math.min(laneH * 3.5, floorScreenY);
             const warnGrad = ctx.createLinearGradient(0, floorScreenY - warnH, 0, floorScreenY);
             warnGrad.addColorStop(0, 'rgba(255,80,0,0)');
-            warnGrad.addColorStop(1, 'rgba(255,80,0,0.18)');
+            warnGrad.addColorStop(1, `rgba(255,80,0,${0.1 + dangerProgress * 0.35})`);
             ctx.fillStyle = warnGrad;
             ctx.fillRect(0, floorScreenY - warnH, W, warnH);
+
+            // Pulsing red edge vignette when lava is close
+            if (dangerProgress > 0.1) {
+              const pulse = dangerProgress * (0.22 + Math.sin(t / (300 - dangerProgress * 200)) * 0.1);
+              const vig = ctx.createRadialGradient(W / 2, H, 0, W / 2, H * 0.7, H * 0.9);
+              vig.addColorStop(0, 'rgba(220,40,0,0)');
+              vig.addColorStop(1, `rgba(220,40,0,${pulse})`);
+              ctx.fillStyle = vig;
+              ctx.fillRect(0, 0, W, H);
+            }
           }
         }
       }
@@ -680,7 +721,7 @@ export function GameScene() {
           ctx.save();
           ctx.globalAlpha = alpha;
           ctx.fillStyle = '#FFD700';
-          ctx.font = 'bold 16px Bebas Neue, Inter, sans-serif';
+          ctx.font = `bold ${fontReadyRef.current ? '22px "Bebas Neue"' : '18px Inter'}, sans-serif`;
           ctx.textAlign = 'center';
           ctx.shadowColor = '#FFD700';
           ctx.shadowBlur = 8;
