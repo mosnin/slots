@@ -10,7 +10,7 @@ export function PrizePotDisplay() {
 
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
-  const progress = ((300 - timeUntilDraw) / 300) * 100;
+  const progress = Math.max(2, (timeUntilDraw / 300) * 100);
   const topPlayer = leaderboard[0];
 
   return (

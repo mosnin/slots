@@ -29,7 +29,7 @@ export function GameHUD() {
 
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
-  const timerPct = ((300 - timeUntilDraw) / 300) * 100;
+  const timerPct = Math.max(2, (timeUntilDraw / 300) * 100);
 
   // Personal best stored in localStorage
   const bestRef = useRef(0);

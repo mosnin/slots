@@ -192,7 +192,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
 
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
-  const progress = Math.max(2, (1 - timeUntilDraw / 300) * 100);
+  const progress = Math.max(2, (timeUntilDraw / 300) * 100);
   const topPlayer = leaderboard[0];
   const totalPaidOut = pastWinners.reduce((acc, w) => acc + w.amount_sol, 0);
 
