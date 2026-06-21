@@ -203,25 +203,18 @@ export function LandingPage({ onPlay }: LandingPageProps) {
 
       {/* ─── Background ─── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(251,191,36,0.07) 0%, transparent 65%), #050510' }} />
-        {ROAD_LANES.map((y) => (
-          <div key={y} className="absolute w-full" style={{ top: `${y}%`, height: '24px', background: 'rgba(255,255,255,0.008)', borderTop: '1px solid rgba(255,255,255,0.022)', borderBottom: '1px solid rgba(255,255,255,0.022)' }} />
-        ))}
+        <img src="/hero-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" style={{ objectPosition: 'center top' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(5,5,16,0.4) 0%, rgba(5,5,16,0.7) 60%, #050510 100%)' }} />
         {BG_CARS.map((car, i) => (
           <div key={i} className="absolute" style={{ top: `calc(${car.laneY}% + 7px)`, left: 0, height: '10px', width: `${car.w}px`, borderRadius: '3px', background: car.color, opacity: 0.1, boxShadow: `0 0 ${Math.floor(car.w / 2)}px ${car.color}88`, willChange: 'transform', animation: `${car.rev ? 'bgCarRev' : 'bgCar'} ${car.dur}s linear ${car.delay}s infinite` }} />
         ))}
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px)' }} />
       </div>
 
       {/* ─── Nav ─── */}
       <nav className="relative z-20 border-b border-white/5 bg-black/30 backdrop-blur-md">
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="text-2xl select-none" style={{ filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.6))' }}>🐔</span>
-            <div>
-              <div className="font-display text-xl leading-none text-yellow-400" style={{ textShadow: '0 0 20px rgba(251,191,36,0.45)' }}>CHICKEN ROAD</div>
-              <div className="text-white/25 text-[10px] tracking-widest uppercase hidden sm:block">Win SOL every 5 min</div>
-            </div>
+            <img src="/logo.png" alt="Chicken Road" className="h-9 w-auto" style={{ filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.5))' }} />
           </div>
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-6 text-sm text-white/50">
@@ -300,11 +293,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
               <span className="text-green-400 text-xs font-bold uppercase tracking-widest">Live · Round in progress</span>
             </div>
 
-            <h1 className="font-display leading-[0.85] mb-4">
-              <span className="block text-6xl md:text-8xl" style={{ color: '#FFD700', textShadow: '0 0 60px rgba(251,191,36,0.4)' }}>CROSS</span>
-              <span className="block text-6xl md:text-8xl text-white">THE ROAD</span>
-              <span className="block text-3xl md:text-5xl text-white/70 mt-2">WIN REAL <span className="text-orange-400">SOL</span></span>
-            </h1>
+            <div className="flex items-end gap-4 mb-4">
+              <h1 className="font-display leading-[0.85]">
+                <span className="block text-6xl md:text-8xl" style={{ color: '#FFD700', textShadow: '0 0 60px rgba(251,191,36,0.4)' }}>CROSS</span>
+                <span className="block text-6xl md:text-8xl text-white">THE ROAD</span>
+                <span className="block text-3xl md:text-5xl text-white/70 mt-2">WIN REAL <span className="text-orange-400">SOL</span></span>
+              </h1>
+              <img src="/chicken.png" alt="Chicken" className="h-28 md:h-40 w-auto shrink-0 mb-1 hidden sm:block" style={{ filter: 'drop-shadow(0 0 20px rgba(251,191,36,0.4))' }} />
+            </div>
 
             <p className="text-white/45 text-base md:text-lg max-w-md mx-auto lg:mx-0 mb-7">
               A brutal arcade chicken-crossing game. Climb the leaderboard, and the highest scorer takes the entire prize pot — automatically, every 5 minutes.
@@ -377,6 +373,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
         <div className="p-px rounded-3xl" style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.5), rgba(255,255,255,0.06))' }}>
           <div className="rounded-[23px] p-5 md:p-6 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0d0c1e 0%, #090714 100%)' }}>
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% -10%, rgba(251,191,36,0.25) 0%, transparent 55%)' }} />
+            <img src="/prizepot.png" alt="" className="absolute right-4 bottom-0 h-24 opacity-20 pointer-events-none select-none hidden md:block" />
             <div className="relative grid md:grid-cols-3 gap-5 items-center">
               <div className="text-center md:text-left">
                 <p className="text-white/30 text-[10px] uppercase tracking-[0.25em] mb-1">💰 Current Prize Pot</p>
