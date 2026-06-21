@@ -366,6 +366,8 @@ export function GameScene() {
   const chickBobRef = useRef(0);
   const chickMoveRef = useRef(false);
   const camYRef = useRef(0);
+  const scrollFloorRef = useRef(-LANE_H * 2); // world Y of the kill boundary (rises over time)
+  const scrollTimeRef = useRef(0);             // seconds spent playing (drives ramp)
   const isDead = useRef(false);
   const phaseRef = useRef<'idle' | 'playing' | 'dead'>('idle');
   const rafRef = useRef(0);
@@ -383,6 +385,8 @@ export function GameScene() {
     chickBobRef.current = 0;
     chickMoveRef.current = false;
     camYRef.current = laneWorldY(0);
+    scrollFloorRef.current = -LANE_H * 2;
+    scrollTimeRef.current = 0;
     popupsRef.current = [];
     carsRef.current = [];
     spawnedLanesRef.current = new Set();
@@ -500,7 +504,24 @@ export function GameScene() {
         // Bob
         chickBobRef.current = Math.sin(t / 90) * (chickMoveRef.current ? 4 : 1.2);
 
-        // Smooth camera
+        // Rising kill floor: advances upward at an accelerating pace.
+        // The camera still follows the chicken normally; the floor is a
+        // separate world-Y boundary — if the chicken falls below it, they die.
+        scrollTimeRef.current += dt;
+        const scrollSpeed = Math.min(
+          LANE_H * 1.6,                          // cap ~93 world-units/s
+          6 + scrollTimeRef.current * 0.55       // ~6 at t=0, ~60 at t=98 s
+        );
+        scrollFloorRef.current += scrollSpeed * dt;
+
+        // Kill if the chicken's lane has been swallowed by the floor
+        if (laneWorldY(chickRef.current.lane) < scrollFloorRef.current - LANE_H * 0.5) {
+          isDead.current = true;
+          sounds.playSquash();
+          setPhase('dead');
+        }
+
+        // Smooth camera — follow the chicken (independent of the floor)
         const targetCamY = laneWorldY(chickRef.current.lane);
         camYRef.current += (targetCamY - camYRef.current) * (1 - Math.pow(0.002, dt));
 
@@ -621,6 +642,30 @@ export function GameScene() {
         g.addColorStop(1, '#3d7527');
         ctx.fillStyle = g;
         ctx.fillRect(0, groundTop, W, H - groundTop);
+      }
+
+      // Rising danger floor (visible threat zone)
+      if (phase === 'playing' && !isDead.current) {
+        const floorScreenY = wts(scrollFloorRef.current);
+        // Red gradient creeping up from the bottom
+        if (floorScreenY < H + 20) {
+          const dangerGrad = ctx.createLinearGradient(0, Math.max(0, floorScreenY - 60), 0, H);
+          dangerGrad.addColorStop(0, 'rgba(220,30,10,0)');
+          dangerGrad.addColorStop(0.5, 'rgba(220,30,10,0.25)');
+          dangerGrad.addColorStop(1, 'rgba(180,0,0,0.6)');
+          ctx.fillStyle = dangerGrad;
+          ctx.fillRect(0, Math.max(0, floorScreenY - 60), W, H - Math.max(0, floorScreenY - 60));
+
+          // Hard edge line
+          ctx.strokeStyle = 'rgba(255,60,20,0.85)';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([12, 7]);
+          ctx.beginPath();
+          ctx.moveTo(0, floorScreenY);
+          ctx.lineTo(W, floorScreenY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
 
       // Cars
