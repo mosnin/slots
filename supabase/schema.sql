@@ -11,23 +11,7 @@ create table if not exists scores (
 create index if not exists scores_score_idx on scores(score desc);
 create index if not exists scores_wallet_idx on scores(wallet);
 
--- Current round leaderboard view (top score per wallet since last draw)
-create or replace view leaderboard_current as
-select
-  wallet,
-  max(score) as score,
-  max(distance) as distance,
-  max(created_at) as last_played
-from scores
-where created_at > (
-  select coalesce(max(created_at), now() - interval '5 minutes')
-  from winners
-)
-group by wallet
-order by score desc
-limit 10;
-
--- Winners history
+-- Winners history (must exist before the leaderboard view references it)
 create table if not exists winners (
   id uuid primary key default gen_random_uuid(),
   wallet text not null,
@@ -42,6 +26,23 @@ create table if not exists winners (
 -- One winner per round — the unique guard that makes payouts idempotent
 -- (a retried/concurrent cron run hits this and aborts before sending SOL).
 create unique index if not exists winners_round_unique on winners(round);
+
+-- Current round leaderboard view (top score per wallet since last draw).
+-- The round boundary is the timestamp of the most recent payout.
+create or replace view leaderboard_current as
+select
+  wallet,
+  max(score) as score,
+  max(distance) as distance,
+  max(created_at) as last_played
+from scores
+where created_at > (
+  select coalesce(max(created_at), now() - interval '5 minutes')
+  from winners
+)
+group by wallet
+order by score desc
+limit 10;
 
 -- Redeemed game sessions — anti-cheat replay protection. Each signed session
 -- token can only be turned into a score once. Service role bypasses RLS, so no

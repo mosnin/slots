@@ -25,6 +25,9 @@ export const MIN_HOP_MS = 70;
 /** A session token older than this (ms) is rejected. */
 export const MAX_SESSION_AGE_MS = 60 * 60 * 1000; // 1 hour
 
+/** Slack to absorb network/timer offset between run start and token issuance. */
+export const GRACE_MS = 1500;
+
 export interface SessionToken {
   sessionId: string;
   issuedAt: number;
@@ -85,11 +88,15 @@ export function validateRun(
   if (score !== distance * POINTS_PER_LANE) return { ok: false, reason: 'score/distance mismatch' };
 
   const elapsed = now - token.issuedAt;
-  if (elapsed < 0) return { ok: false, reason: 'session from the future' };
+  if (elapsed < -GRACE_MS) return { ok: false, reason: 'session from the future' };
   if (elapsed > MAX_SESSION_AGE_MS) return { ok: false, reason: 'session expired' };
 
   // Physical-plausibility: crossing N lanes takes at least N * MIN_HOP_MS.
-  if (elapsed < distance * MIN_HOP_MS) return { ok: false, reason: 'too fast — speed hack' };
+  // GRACE_MS absorbs the small delay between play starting and the session
+  // token being issued, so legitimate short runs aren't false-rejected.
+  if (elapsed < distance * MIN_HOP_MS - GRACE_MS) {
+    return { ok: false, reason: 'too fast — speed hack' };
+  }
 
   return { ok: true };
 }

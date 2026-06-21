@@ -54,13 +54,16 @@ export async function getPastWinners() {
 }
 
 export async function getPrizePool(): Promise<number> {
-  const { data, error } = await supabase
-    .from('config')
-    .select('value')
-    .eq('key', 'prize_pool_sol')
-    .single();
-  if (error) return 0;
-  return parseFloat(data?.value || '0');
+  // The prize pot is the treasury's real on-chain balance (minus a fee
+  // reserve), served by /api/pool.
+  try {
+    const res = await fetch('/api/pool');
+    if (!res.ok) return 0;
+    const { sol } = await res.json();
+    return typeof sol === 'number' ? sol : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function getNextDraw(): Promise<number> {

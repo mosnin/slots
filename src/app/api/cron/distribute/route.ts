@@ -54,11 +54,26 @@ export async function GET(req: Request) {
     }
     const winner = topScorers[0];
 
-    const prizeSOL = parseFloat((await getConfig(supabase, 'prize_pool_sol')) || '0');
-    if (prizeSOL <= 0) {
+    // The prize is the treasury's actual on-chain balance (minus a fee reserve).
+    if (!process.env.TREASURY_KEYPAIR) {
       await resetNextDraw(supabase);
-      return NextResponse.json({ message: 'Prize pool empty' });
+      return NextResponse.json({ message: 'Treasury not configured' });
     }
+    const connection = new Connection(
+      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
+      'confirmed'
+    );
+    const treasury = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(process.env.TREASURY_KEYPAIR))
+    );
+
+    const balance = await connection.getBalance(treasury.publicKey);
+    const lamports = balance - FEE_BUFFER_LAMPORTS;
+    if (lamports <= 0) {
+      await resetNextDraw(supabase);
+      return NextResponse.json({ message: 'Treasury empty', winner: winner.wallet });
+    }
+    const payoutSOL = lamports / 1e9;
 
     const round = parseInt((await getConfig(supabase, 'current_round')) || '0') + 1;
 
@@ -72,7 +87,7 @@ export async function GET(req: Request) {
         wallet: winner.wallet,
         score: winner.score,
         distance: winner.distance,
-        amount_sol: prizeSOL,
+        amount_sol: payoutSOL,
         tx_signature: null,
         round,
       })
@@ -86,37 +101,13 @@ export async function GET(req: Request) {
       throw claimErr;
     }
 
-    // Advance the round + zero the pool now that the claim is locked in.
-    await supabase.from('config').upsert([
-      { key: 'prize_pool_sol', value: '0' },
-      { key: 'current_round', value: round.toString() },
-    ]);
+    // Advance the round now that the claim is locked in.
+    await supabase.from('config').upsert([{ key: 'current_round', value: round.toString() }]);
     await resetNextDraw(supabase);
 
     // ── Send SOL ───────────────────────────────────────────────────────
     let txSig: string | null = null;
-    let payoutSOL = prizeSOL;
     try {
-      const connection = new Connection(
-        process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
-        'confirmed'
-      );
-      const treasury = Keypair.fromSecretKey(
-        new Uint8Array(JSON.parse(process.env.TREASURY_KEYPAIR!))
-      );
-
-      // Never attempt to send more than the treasury actually holds.
-      const balance = await connection.getBalance(treasury.publicKey);
-      let lamports = Math.floor(prizeSOL * 1e9);
-      const maxSendable = balance - FEE_BUFFER_LAMPORTS;
-      if (lamports > maxSendable) lamports = maxSendable;
-
-      if (lamports <= 0) {
-        await supabase.from('winners').update({ amount_sol: 0 }).eq('id', claim.id);
-        return NextResponse.json({ message: 'Treasury insufficient', round, winner: winner.wallet });
-      }
-      payoutSOL = lamports / 1e9;
-
       const tx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: treasury.publicKey,
@@ -130,11 +121,8 @@ export async function GET(req: Request) {
       // Claim row stays (tx_signature null) so the round isn't reprocessed/double-paid.
     }
 
-    // Record the resulting signature / actual amount on the existing claim row.
-    await supabase
-      .from('winners')
-      .update({ tx_signature: txSig, amount_sol: payoutSOL })
-      .eq('id', claim.id);
+    // Record the resulting signature on the existing claim row.
+    await supabase.from('winners').update({ tx_signature: txSig }).eq('id', claim.id);
 
     return NextResponse.json({
       success: true,

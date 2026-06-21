@@ -8,7 +8,6 @@ import { useKeyboardControls } from './hooks/useKeyboardControls';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const LANE_H = 58;
-const TOTAL_LANES = 50;
 const CHICKEN_W = 26;
 const CHICKEN_H = 32;
 const CAR_COLORS = [
@@ -53,28 +52,27 @@ function laneWorldY(lane: number) {
   return lane * LANE_H;
 }
 
-function makeCars(canvasW: number): Car[] {
+// Spawn the cars for a single road lane. Lanes are spawned on demand as the
+// chicken advances, so the world is effectively infinite. Difficulty scales
+// with depth (more, faster cars) and is capped so deep lanes stay possible.
+function spawnCarsForLane(lane: number, canvasW: number, nextId: () => number): Car[] {
+  if (getLaneType(lane) !== 'road') return [];
+  const diff = Math.min(1, lane / 45);
+  const count = 2 + Math.floor(diff * 4); // 2-6
+  const baseSpeed = 55 + diff * 150;      // 55-205 px/s
+  const dir: 1 | -1 = lane % 2 === 0 ? 1 : -1;
   const cars: Car[] = [];
-  let id = 0;
-  for (let lane = 1; lane < TOTAL_LANES; lane++) {
-    if (getLaneType(lane) !== 'road') continue;
-    const diff = Math.min(1, lane / 38);
-    const count = 2 + Math.floor(diff * 4); // 2-6
-    const baseSpeed = 55 + diff * 140;      // 55-195 px/s
-    const dir: 1 | -1 = lane % 2 === 0 ? 1 : -1;
-    const carW = 60 + Math.floor(Math.random() * 38); // longer, car-shaped
-    for (let c = 0; c < count; c++) {
-      cars.push({
-        id: id++,
-        lane,
-        x: (c / count) * (canvasW + 500) - 100 + Math.random() * 30,
-        speed: baseSpeed * (0.8 + Math.random() * 0.4),
-        dir,
-        color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
-        w: carW,
-        h: 30,
-      });
-    }
+  for (let c = 0; c < count; c++) {
+    cars.push({
+      id: nextId(),
+      lane,
+      x: (c / count) * (canvasW + 500) - 100 + Math.random() * 40,
+      speed: baseSpeed * (0.8 + Math.random() * 0.4),
+      dir,
+      color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+      w: 60 + Math.floor(Math.random() * 38),
+      h: 30,
+    });
   }
   return cars;
 }
@@ -359,6 +357,8 @@ export function GameScene() {
 
   // All mutable game state in refs (never cause re-renders)
   const carsRef = useRef<Car[]>([]);
+  const spawnedLanesRef = useRef<Set<number>>(new Set());
+  const carIdRef = useRef(0);
   const cloudsRef = useRef<Cloud[]>(makeClouds());
   const popupsRef = useRef<Popup[]>([]);
   const chickRef = useRef({ x: 240, lane: 0 });
@@ -384,7 +384,8 @@ export function GameScene() {
     chickMoveRef.current = false;
     camYRef.current = laneWorldY(0);
     popupsRef.current = [];
-    carsRef.current = makeCars(canvasWRef.current);
+    carsRef.current = [];
+    spawnedLanesRef.current = new Set();
     setPhase('playing');
   }, [setPhase]);
 
@@ -472,6 +473,30 @@ export function GameScene() {
         });
         carsRef.current = newCars;
 
+        // Infinite world: spawn lanes in a window around the chicken and
+        // despawn ones far outside it.
+        {
+          const cl = chickRef.current.lane;
+          const ahead = Math.ceil((H * 0.62) / LANE_H) + 4;
+          const behind = Math.ceil((H * 0.45) / LANE_H) + 4;
+          const minLane = cl - behind;
+          const maxLane = cl + ahead;
+          for (let l = Math.max(1, minLane); l <= maxLane; l++) {
+            if (getLaneType(l) === 'road' && !spawnedLanesRef.current.has(l)) {
+              spawnedLanesRef.current.add(l);
+              carsRef.current.push(
+                ...spawnCarsForLane(l, W, () => carIdRef.current++)
+              );
+            }
+          }
+          carsRef.current = carsRef.current.filter(
+            (c) => c.lane >= minLane - 2 && c.lane <= maxLane + 2
+          );
+          spawnedLanesRef.current.forEach((l) => {
+            if (l < minLane - 2 || l > maxLane + 2) spawnedLanesRef.current.delete(l);
+          });
+        }
+
         // Bob
         chickBobRef.current = Math.sin(t / 90) * (chickMoveRef.current ? 4 : 1.2);
 
@@ -528,7 +553,7 @@ export function GameScene() {
       const topLane = Math.ceil((camYRef.current + H * 0.62) / LANE_H) + 2;
       const botLane = Math.floor((camYRef.current - H * 0.45) / LANE_H) - 1;
 
-      for (let i = Math.max(0, botLane); i <= Math.min(TOTAL_LANES - 1, topLane); i++) {
+      for (let i = Math.max(0, botLane); i <= topLane; i++) {
         const wy = laneWorldY(i);
         const sy = wts(wy);
         const top = sy - LANE_H / 2;
