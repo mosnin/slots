@@ -1,6 +1,10 @@
 'use client';
 
-import { ChickenGame } from "../game/ChickenGame";
+import dynamic from "next/dynamic";
+const ChickenGame = dynamic(
+  () => import("../game/ChickenGame").then((m) => ({ default: m.ChickenGame })),
+  { ssr: false }
+);
 import { motion } from "framer-motion";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useGameStore } from "../store/gameStore";

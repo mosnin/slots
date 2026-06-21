@@ -3,7 +3,7 @@ import { AnchorProvider, Program, BN } from "@coral-xyz/anchor";
 import { IDL } from "../idl/chicken_road";
 
 export const PROGRAM_ID = new PublicKey(
-  "ChkRd1111111111111111111111111111111111111111"
+  "11111111111111111111111111111111"
 );
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl("devnet");
