@@ -1,21 +1,23 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { PerspectiveCamera, Stars, Text } from '@react-three/drei';
-import * as THREE from 'three';
+import { useRef, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { ChickenMesh } from './meshes/ChickenMesh';
-import { LaneMesh } from './meshes/LaneMesh';
-import { CarMesh } from './meshes/CarMesh';
-import { TreeMesh } from './meshes/TreeMesh';
+import { useSounds } from './sounds/useSounds';
 import { useMobileControls } from './hooks/useMobileControls';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
-import { useSounds } from './sounds/useSounds';
 
-const LANE_COUNT = 30;
-const LANE_WIDTH = 2.4;
-const SAFE_EVERY = 4;
+// ── Constants ──────────────────────────────────────────────────────────────
+const LANE_H = 58;
+const TOTAL_LANES = 50;
+const CHICKEN_W = 26;
+const CHICKEN_H = 32;
+const CAR_COLORS = [
+  '#e74c3c','#3b82f6','#f59e0b','#8b5cf6',
+  '#10b981','#f97316','#ec4899','#06b6d4',
+  '#ef4444','#6366f1',
+];
+
+type Dir = 'up' | 'down' | 'left' | 'right';
 
 interface Car {
   id: number;
@@ -24,278 +26,579 @@ interface Car {
   speed: number;
   dir: 1 | -1;
   color: string;
-  type: 'car' | 'truck' | 'bus';
+  w: number;
+  h: number;
 }
 
-function makeLanes() {
-  const types: Array<'safe' | 'road'> = [];
-  for (let i = 0; i < LANE_COUNT; i++) {
-    types.push(i % SAFE_EVERY === 0 ? 'safe' : 'road');
-  }
-  return types;
-}
-
-const LANES = makeLanes();
-const COLORS = ['#e74c3c','#3498db','#f1c40f','#9b59b6','#1abc9c','#e67e22','#e91e63','#00bcd4'];
-
-function makeCars(): Car[] {
-  const cars: Car[] = [];
-  let id = 0;
-  LANES.forEach((t, i) => {
-    if (t !== 'road') return;
-    const count = 2 + Math.floor(Math.random() * 4);
-    const baseSpeed = 2.5 + (i / LANE_COUNT) * 9;
-    const dir = (i % 2 === 0 ? 1 : -1) as 1 | -1;
-    const vTypes: Array<'car'|'truck'|'bus'> = ['car','car','car','truck','bus'];
-    for (let c = 0; c < count; c++) {
-      cars.push({
-        id: id++,
-        lane: i,
-        x: ((c / count) - 0.5) * 50 + Math.random() * 5,
-        speed: baseSpeed * (0.8 + Math.random() * 0.4),
-        dir,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        type: vTypes[Math.floor(Math.random() * vTypes.length)],
-      });
-    }
-  });
-  return cars;
-}
-
-// Floating score popup
-interface ScorePopup {
-  id: number;
+interface Popup {
   x: number;
-  z: number;
-  value: number;
+  wy: number; // world y
   age: number;
 }
 
+interface Cloud {
+  x: number;
+  sy: number; // screen y (fixed, not scrolling)
+  w: number;
+  h: number;
+  speed: number;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function getLaneType(i: number): 'safe' | 'road' {
+  return i % 4 === 0 ? 'safe' : 'road';
+}
+
+function laneWorldY(lane: number) {
+  return lane * LANE_H;
+}
+
+function makeCars(canvasW: number): Car[] {
+  const cars: Car[] = [];
+  let id = 0;
+  for (let lane = 1; lane < TOTAL_LANES; lane++) {
+    if (getLaneType(lane) !== 'road') continue;
+    const diff = Math.min(1, lane / 38);
+    const count = 2 + Math.floor(diff * 4); // 2-6
+    const baseSpeed = 55 + diff * 140;      // 55-195 px/s
+    const dir: 1 | -1 = lane % 2 === 0 ? 1 : -1;
+    const carW = 42 + Math.floor(Math.random() * 32);
+    for (let c = 0; c < count; c++) {
+      cars.push({
+        id: id++,
+        lane,
+        x: (c / count) * (canvasW + 500) - 100 + Math.random() * 30,
+        speed: baseSpeed * (0.8 + Math.random() * 0.4),
+        dir,
+        color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+        w: carW,
+        h: 30,
+      });
+    }
+  }
+  return cars;
+}
+
+function makeClouds(): Cloud[] {
+  return Array.from({ length: 7 }, (_, i) => ({
+    x: (i / 7) * 500 + Math.random() * 60,
+    sy: 15 + Math.random() * 55,
+    w: 90 + Math.random() * 90,
+    h: 28 + Math.random() * 18,
+    speed: 10 + Math.random() * 14,
+  }));
+}
+
+// ── Canvas drawing ─────────────────────────────────────────────────────────
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  const R = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + R, y);
+  ctx.lineTo(x + w - R, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + R);
+  ctx.lineTo(x + w, y + h - R);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - R, y + h);
+  ctx.lineTo(x + R, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - R);
+  ctx.lineTo(x, y + R);
+  ctx.quadraticCurveTo(x, y, x + R, y);
+  ctx.closePath();
+}
+
+function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.shadowColor = 'rgba(160,200,240,0.35)';
+  ctx.shadowBlur = 10;
+  const r = h * 0.5;
+  ctx.beginPath();
+  ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.48, y + r * 0.65, r * 1.15, 0, Math.PI * 2);
+  ctx.arc(x + w - r * 0.9, y + r, r * 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCar(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, h: number, color: string, dir: 1 | -1) {
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+
+  ctx.save();
+  // Body
+  ctx.fillStyle = color;
+  ctx.shadowColor = color + '55';
+  ctx.shadowBlur = 8;
+  roundRect(ctx, x, y, w, h, 6);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Roof / windshield area
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  const roofW = w * 0.46;
+  const roofX = x + (w - roofW) / 2;
+  roundRect(ctx, roofX, y + h * 0.12, roofW, h * 0.48, 4);
+  ctx.fill();
+
+  // Wheels
+  ctx.fillStyle = '#1a1a1a';
+  const wr = 5.5;
+  [[x + w * 0.18, y + wr], [x + w * 0.82, y + wr],
+   [x + w * 0.18, y + h - wr], [x + w * 0.82, y + h - wr]].forEach(([wx, wy]) => {
+    ctx.beginPath();
+    ctx.arc(wx as number, wy as number, wr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.arc(wx as number, wy as number, wr * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+  });
+
+  // Headlights (front)
+  const hlX = dir === 1 ? x + w - 5 : x + 5;
+  ctx.fillStyle = 'rgba(255,250,200,0.95)';
+  ctx.shadowColor = '#fffde7';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(hlX, y + h * 0.28, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(hlX, y + h * 0.72, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+function drawChicken(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  dir: Dir, bob: number, dead: boolean, scale = 1
+) {
+  ctx.save();
+  ctx.translate(cx, cy + bob);
+  if (dead) ctx.rotate(Math.PI * 0.45);
+  ctx.scale(scale, scale);
+
+  const s = 1;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(0, CHICKEN_H * 0.52 * s, 10 * s, 4 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#f5eecc';
+  ctx.strokeStyle = '#c8b87a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.ellipse(0, 4 * s, 10 * s, 13 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Wing highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-3 * s, 2 * s, 5 * s, 8 * s, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f5eecc';
+  ctx.strokeStyle = '#c8b87a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(0, -11 * s, 8 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Comb
+  ctx.fillStyle = '#e74c3c';
+  for (let ci = 0; ci < 3; ci++) {
+    ctx.beginPath();
+    ctx.ellipse((-2 + ci * 2) * s, (-18 - ci * 0.5) * s, 2 * s, 3.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Wattle
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.ellipse(1 * s, -6 * s, 2.5 * s, 3 * s, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beak
+  ctx.fillStyle = '#f39c12';
+  ctx.strokeStyle = '#e08b0d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (dir === 'left') {
+    ctx.moveTo(-7 * s, -11 * s);
+    ctx.lineTo(-14 * s, -9 * s);
+    ctx.lineTo(-7 * s, -7 * s);
+  } else if (dir === 'right') {
+    ctx.moveTo(7 * s, -11 * s);
+    ctx.lineTo(14 * s, -9 * s);
+    ctx.lineTo(7 * s, -7 * s);
+  } else {
+    ctx.moveTo(-3 * s, -18 * s);
+    ctx.lineTo(3 * s, -18 * s);
+    ctx.lineTo(0, -23 * s);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Eye
+  const eyeX = dir === 'left' ? -4 * s : 4 * s;
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath();
+  ctx.arc(eyeX, -13 * s, 2.2 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.beginPath();
+  ctx.arc(eyeX + 0.8 * s, -13.8 * s, 0.9 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = '#e08b0d';
+  ctx.lineWidth = 2.5 * s;
+  ctx.lineCap = 'round';
+  const legAnim = dead ? 0 : bob * 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-3 * s, 15 * s);
+  ctx.lineTo(-3 * s + legAnim, 21 * s);
+  ctx.moveTo(3 * s, 15 * s);
+  ctx.lineTo(3 * s - legAnim, 21 * s);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 export function GameScene() {
-  const phase = useGameStore(s => s.phase);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const setPhase = useGameStore(s => s.setPhase);
   const incrementScore = useGameStore(s => s.incrementScore);
   const incrementDistance = useGameStore(s => s.incrementDistance);
-  const score = useGameStore(s => s.score);
-
-  const [chickenPos, setChickenPos] = useState({ x: 0, z: 0 });
-  const [chickenLane, setChickenLane] = useState(0);
-  const [chickenDir, setChickenDir] = useState<'up'|'down'|'left'|'right'>('up');
-  const [cars, setCars] = useState<Car[]>(() => makeCars());
-  const [isMoving, setIsMoving] = useState(false);
-  const [popups, setPopups] = useState<ScorePopup[]>([]);
-  const popupId = useRef(0);
-  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-  const camTargetZ = useRef(8);
-  const camTargetY = useRef(5);
-  const chickenPosRef = useRef({ x: 0, z: 0 });
-  const chickenLaneRef = useRef(0);
-  const isDead = useRef(false);
   const sounds = useSounds();
 
-  useEffect(() => {
-    chickenPosRef.current = chickenPos;
-  }, [chickenPos]);
+  // All mutable game state in refs (never cause re-renders)
+  const carsRef = useRef<Car[]>([]);
+  const cloudsRef = useRef<Cloud[]>(makeClouds());
+  const popupsRef = useRef<Popup[]>([]);
+  const chickRef = useRef({ x: 240, lane: 0 });
+  const chickDirRef = useRef<Dir>('up');
+  const chickBobRef = useRef(0);
+  const chickMoveRef = useRef(false);
+  const camYRef = useRef(0);
+  const isDead = useRef(false);
+  const phaseRef = useRef<'idle' | 'playing' | 'dead'>('idle');
+  const rafRef = useRef(0);
+  const lastTRef = useRef(0);
+  const canvasWRef = useRef(480);
 
-  useEffect(() => {
-    chickenLaneRef.current = chickenLane;
-  }, [chickenLane]);
+  // Keep phaseRef in sync
+  const rawPhase = useGameStore(s => s.phase);
+  useEffect(() => { phaseRef.current = rawPhase; }, [rawPhase]);
 
-  const move = useCallback((dir: 'up'|'down'|'left'|'right') => {
-    if (phase !== 'playing' || isMoving || isDead.current) return;
-    setIsMoving(true);
-    setChickenDir(dir);
+  const startGame = useCallback(() => {
+    isDead.current = false;
+    chickRef.current = { x: canvasWRef.current / 2, lane: 0 };
+    chickDirRef.current = 'up';
+    chickBobRef.current = 0;
+    chickMoveRef.current = false;
+    camYRef.current = laneWorldY(0);
+    popupsRef.current = [];
+    carsRef.current = makeCars(canvasWRef.current);
+    setPhase('playing');
+  }, [setPhase]);
+
+  const move = useCallback((dir: Dir) => {
+    if (phaseRef.current !== 'playing' || isDead.current || chickMoveRef.current) return;
+    chickDirRef.current = dir;
+    chickMoveRef.current = true;
+    setTimeout(() => { chickMoveRef.current = false; }, 140);
     sounds.playHop();
-    setTimeout(() => setIsMoving(false), 150);
 
-    setChickenPos(prev => {
-      let nx = prev.x;
-      let nz = prev.z;
-      const curLane = chickenLaneRef.current;
-      let nl = curLane;
+    const cur = chickRef.current;
+    let newLane = cur.lane;
+    let newX = cur.x;
+    const W = canvasWRef.current;
 
-      if (dir === 'up')        { nz -= LANE_WIDTH; nl = curLane + 1; }
-      else if (dir === 'down') { nz += LANE_WIDTH; nl = Math.max(0, curLane - 1); }
-      else if (dir === 'left') { nx -= 1.8; }
-      else if (dir === 'right'){ nx += 1.8; }
+    if (dir === 'up')    newLane = cur.lane + 1;
+    else if (dir === 'down') newLane = Math.max(0, cur.lane - 1);
+    else if (dir === 'left')  newX = Math.max(22, cur.x - 40);
+    else if (dir === 'right') newX = Math.min(W - 22, cur.x + 40);
 
-      nx = Math.max(-11, Math.min(11, nx));
+    if (dir === 'up' && newLane > cur.lane) {
+      incrementScore();
+      incrementDistance();
+      if (newLane % 10 === 0) sounds.playMilestone();
+      else if (getLaneType(newLane) === 'safe') sounds.playScore();
+      popupsRef.current = [
+        ...popupsRef.current.slice(-6),
+        { x: newX, wy: laneWorldY(newLane), age: 0 },
+      ];
+    }
 
-      if (dir === 'up' && nl > curLane) {
-        setChickenLane(nl);
-        incrementScore();
-        incrementDistance();
-        // Milestone every 10 lanes
-        if (nl % 10 === 0) sounds.playMilestone();
-        else sounds.playScore();
-
-        // Score popup
-        setPopups(p => [...p.slice(-5), {
-          id: popupId.current++,
-          x: nx,
-          z: nz,
-          value: 100,
-          age: 0,
-        }]);
-
-        camTargetY.current = 5 + nl * 0.15;
-        camTargetZ.current = 8 + nl * 0.3;
-      } else if (dir === 'down') {
-        setChickenLane(nl);
-      }
-
-      return { x: nx, z: nz };
-    });
-  }, [phase, isMoving, incrementScore, incrementDistance, sounds]);
+    chickRef.current = { x: newX, lane: newLane };
+  }, [incrementScore, incrementDistance, sounds]);
 
   useKeyboardControls(move);
   useMobileControls(move);
 
-  useFrame((_, delta) => {
-    if (phase !== 'playing') return;
+  // Resize
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvasWRef.current = rect.width;
+      if (phaseRef.current === 'idle') {
+        chickRef.current.x = rect.width / 2;
+      }
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
 
-    // Move cars
-    setCars(prev => prev.map(car => {
-      let nx = car.x + car.speed * car.dir * delta;
-      if (nx > 28) nx = -28;
-      if (nx < -28) nx = 28;
-      return { ...car, x: nx };
-    }));
+  // Main game loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // Age + remove popups
-    setPopups(prev => prev
-      .map(p => ({ ...p, age: p.age + delta }))
-      .filter(p => p.age < 1.2)
-    );
+    const loop = (t: number) => {
+      const dt = Math.min((t - lastTRef.current) / 1000, 0.05);
+      lastTRef.current = t;
 
-    // Collision detection
-    if (!isDead.current) {
-      const cx = chickenPosRef.current.x;
-      const cl = chickenLaneRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { rafRef.current = requestAnimationFrame(loop); return; }
 
-      for (const car of cars) {
-        if (car.lane !== cl) continue;
-        const carWidth = car.type === 'bus' ? 1.8 : car.type === 'truck' ? 1.5 : 1.1;
-        if (Math.abs(car.x - cx) < carWidth) {
-          isDead.current = true;
-          sounds.playSquash();
-          setPhase('dead');
-          break;
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.width / dpr;
+      const H = canvas.height / dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const phase = phaseRef.current;
+
+      // ── UPDATE ─────────────────────────────────────────────
+      if (phase === 'playing' && !isDead.current) {
+        // Cars
+        const newCars = carsRef.current.map(car => {
+          let nx = car.x + car.speed * car.dir * dt;
+          if (nx > W + 250)  nx = -250;
+          if (nx < -250) nx = W + 250;
+          return { ...car, x: nx };
+        });
+        carsRef.current = newCars;
+
+        // Bob
+        chickBobRef.current = Math.sin(t / 90) * (chickMoveRef.current ? 4 : 1.2);
+
+        // Smooth camera
+        const targetCamY = laneWorldY(chickRef.current.lane);
+        camYRef.current += (targetCamY - camYRef.current) * (1 - Math.pow(0.002, dt));
+
+        // Collision
+        const cx = chickRef.current.x;
+        const cl = chickRef.current.lane;
+        const cy = laneWorldY(cl);
+        for (const car of carsRef.current) {
+          if (car.lane !== cl) continue;
+          const carCX = car.x + car.w / 2;
+          if (Math.abs(carCX - cx) < car.w / 2 + CHICKEN_W / 2 - 4) {
+            isDead.current = true;
+            sounds.playSquash();
+            setPhase('dead');
+            break;
+          }
+        }
+
+        // Popups age
+        popupsRef.current = popupsRef.current
+          .map(p => ({ ...p, age: p.age + dt }))
+          .filter(p => p.age < 1.0);
+      }
+
+      // Clouds drift (always)
+      cloudsRef.current = cloudsRef.current.map(c => {
+        let nx = c.x + c.speed * dt;
+        if (nx > W + 200) nx = -200;
+        return { ...c, x: nx };
+      });
+
+      // ── DRAW ───────────────────────────────────────────────
+
+      // worldToScreen: transforms world-Y to screen-Y
+      // camYRef = world Y of the chicken; chicken appears at H * 0.62
+      const anchorY = H * 0.62;
+      const wts = (worldY: number) => anchorY - (worldY - camYRef.current);
+
+      // Sky gradient
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#63b3ed');
+      sky.addColorStop(1, '#bde0f5');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
+      // Clouds (screen-space, upper portion only)
+      cloudsRef.current.forEach(c => drawCloud(ctx, c.x, c.sy, c.w, c.h));
+
+      // Lane strips
+      const topLane = Math.ceil((camYRef.current + H * 0.62) / LANE_H) + 2;
+      const botLane = Math.floor((camYRef.current - H * 0.45) / LANE_H) - 1;
+
+      for (let i = Math.max(0, botLane); i <= Math.min(TOTAL_LANES - 1, topLane); i++) {
+        const wy = laneWorldY(i);
+        const sy = wts(wy);
+        const top = sy - LANE_H / 2;
+        const type = getLaneType(i);
+
+        if (type === 'safe') {
+          const g = ctx.createLinearGradient(0, top, 0, top + LANE_H);
+          g.addColorStop(0, '#5aa63c');
+          g.addColorStop(1, '#4a8f30');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, top, W, LANE_H);
+
+          // Grass blade dots
+          ctx.fillStyle = 'rgba(255,255,180,0.55)';
+          for (let fx = 20 + (i * 37 % 20); fx < W; fx += 55) {
+            ctx.beginPath();
+            ctx.arc(fx, top + LANE_H / 2, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // Edge stripe
+          ctx.fillStyle = 'rgba(100,180,60,0.6)';
+          ctx.fillRect(0, top, W, 3);
+          ctx.fillRect(0, top + LANE_H - 3, W, 3);
+        } else {
+          // Road
+          const g = ctx.createLinearGradient(0, top, 0, top + LANE_H);
+          g.addColorStop(0, '#565656');
+          g.addColorStop(1, '#484848');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, top, W, LANE_H);
+
+          // Center dashes
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([18, 14]);
+          ctx.beginPath();
+          ctx.moveTo(0, top + LANE_H / 2);
+          ctx.lineTo(W, top + LANE_H / 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
       }
-    }
 
-    // Smooth camera
-    if (cameraRef.current) {
-      const targetZ = chickenPosRef.current.z + camTargetZ.current;
-      const targetY = camTargetY.current;
-      cameraRef.current.position.z += (targetZ - cameraRef.current.position.z) * 0.07;
-      cameraRef.current.position.y += (targetY - cameraRef.current.position.y) * 0.07;
-      cameraRef.current.position.x += (0 - cameraRef.current.position.x) * 0.05;
-      cameraRef.current.lookAt(new THREE.Vector3(0, 0, chickenPosRef.current.z));
-    }
-  });
+      // Below-world ground (lane 0 area extended down)
+      const groundTop = wts(-LANE_H);
+      if (groundTop < H) {
+        const g = ctx.createLinearGradient(0, groundTop, 0, H);
+        g.addColorStop(0, '#4a8f30');
+        g.addColorStop(1, '#3d7527');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, groundTop, W, H - groundTop);
+      }
 
-  const startGame = useCallback(() => {
-    isDead.current = false;
-    setChickenPos({ x: 0, z: 0 });
-    chickenPosRef.current = { x: 0, z: 0 };
-    setChickenLane(0);
-    chickenLaneRef.current = 0;
-    setCars(makeCars());
-    setPopups([]);
-    camTargetY.current = 5;
-    camTargetZ.current = 8;
-    setPhase('playing');
-  }, [setPhase]);
+      // Cars
+      if (phase !== 'idle') {
+        carsRef.current.forEach(car => {
+          const sy = wts(laneWorldY(car.lane));
+          if (sy < -60 || sy > H + 60) return;
+          drawCar(ctx, car.x + car.w / 2, sy, car.w, car.h, car.color, car.dir);
+        });
+      }
+
+      // Score popups
+      popupsRef.current.forEach(p => {
+        const alpha = Math.max(0, 1 - p.age);
+        const sy = wts(p.wy) - p.age * 50;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 16px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 8;
+        ctx.fillText('+100', p.x, sy);
+        ctx.restore();
+      });
+
+      // Chicken
+      const csy = wts(laneWorldY(chickRef.current.lane));
+      drawChicken(ctx, chickRef.current.x, csy, chickDirRef.current, chickBobRef.current, isDead.current);
+
+      // Idle overlay
+      if (phase === 'idle') {
+        ctx.fillStyle = 'rgba(0,0,0,0.42)';
+        ctx.fillRect(0, 0, W, H);
+
+        const pulse = 0.88 + Math.sin(t / 380) * 0.12;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,215,0,${pulse * 0.55})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(W / 2, H / 2 - 28, 44 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        drawChicken(ctx, W / 2, H / 2 - 28, 'up', Math.sin(t / 280) * 5, false, 1.3);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 26px "Bebas Neue", Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(255,215,0,0.55)';
+        ctx.shadowBlur = 14;
+        ctx.fillText('TAP TO START', W / 2, H / 2 + 42);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.font = '13px Inter, sans-serif';
+        ctx.fillText('Cross the road · Top the board · Win SOL', W / 2, H / 2 + 64);
+
+        // Keyboard hints (desktop only)
+        if (W > 500) {
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.font = '11px Inter, sans-serif';
+          ctx.fillText('Arrow keys / WASD to move', W / 2, H / 2 + 88);
+        }
+      }
+
+      // Dead: subtle red vignette
+      if (phase === 'dead') {
+        const rad = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.8);
+        rad.addColorStop(0, 'transparent');
+        rad.addColorStop(1, 'rgba(220,30,30,0.3)');
+        ctx.fillStyle = rad;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [setPhase, sounds]);
+
+  const handlePointerDown = useCallback(() => {
+    if (phaseRef.current === 'idle') startGame();
+  }, [startGame]);
 
   return (
-    <>
-      <PerspectiveCamera
-        ref={cameraRef}
-        makeDefault
-        fov={55}
-        position={[0, 5, 8]}
-        near={0.1}
-        far={300}
-      />
-
-      {/* Rich lighting */}
-      <ambientLight intensity={0.5} color="#334466" />
-      <directionalLight
-        position={[15, 30, 10]}
-        intensity={2}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        color="#fff8f0"
-      />
-      <directionalLight position={[-10, 10, -5]} intensity={0.4} color="#4466aa" />
-      <pointLight position={[0, 8, chickenPos.z]} color="#ffdd88" intensity={1.5} distance={20} />
-
-      <Stars radius={150} depth={60} count={5000} factor={4} saturation={0.6} fade speed={0.5} />
-      <fog attach="fog" args={['#0a0a1a', 25, 80]} />
-
-      {/* Ground — extended */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, -LANE_COUNT * LANE_WIDTH / 2]} receiveShadow>
-        <planeGeometry args={[30, LANE_COUNT * LANE_WIDTH + 20]} />
-        <meshStandardMaterial color="#111122" roughness={0.95} />
-      </mesh>
-
-      {/* Lanes */}
-      {LANES.map((type, i) => (
-        <LaneMesh key={i} laneIndex={i} laneType={type} laneWidth={LANE_WIDTH} />
-      ))}
-
-      {/* Cars */}
-      {cars.map(car => (
-        <CarMesh
-          key={car.id}
-          position={[car.x, 0.35, -car.lane * LANE_WIDTH]}
-          color={car.color}
-          direction={car.dir}
-          type={car.type}
-        />
-      ))}
-
-      {/* Trees */}
-      {LANES.map((type, i) =>
-        type === 'safe'
-          ? [-13, -9, 9, 13].map(tx => (
-              <TreeMesh key={`t${i}-${tx}`} position={[tx, 0, -i * LANE_WIDTH]} />
-            ))
-          : null
-      )}
-
-      {/* Score popups */}
-      {popups.map(p => (
-        <Text
-          key={p.id}
-          position={[p.x, 1.5 + p.age * 2, p.z]}
-          fontSize={0.5}
-          color="#FFD700"
-          anchorX="center"
-          anchorY="middle"
-          fillOpacity={Math.max(0, 1 - p.age)}
-        >
-          +100
-        </Text>
-      ))}
-
-      {/* Chicken */}
-      <ChickenMesh
-        position={[chickenPos.x, 0.4, chickenPos.z]}
-        isMoving={isMoving}
-        isDead={phase === 'dead'}
-        direction={chickenDir}
-      />
-
-      {/* Invisible tap-to-start plane */}
-      {phase === 'idle' && (
-        <mesh position={[0, 0.5, 3]} rotation={[-Math.PI / 2, 0, 0]} onClick={startGame}>
-          <planeGeometry args={[40, 20]} />
-          <meshBasicMaterial transparent opacity={0} />
-        </mesh>
-      )}
-    </>
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full block"
+      style={{ touchAction: 'none', cursor: 'pointer' }}
+      onPointerDown={handlePointerDown}
+    />
   );
 }

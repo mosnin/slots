@@ -59,3 +59,17 @@ html {
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
+
+@keyframes bgCar {
+  from { transform: translateX(-200px); }
+  to   { transform: translateX(calc(100vw + 200px)); }
+}
+
+@keyframes bgCarRev {
+  from { transform: translateX(calc(100vw + 200px)); }
+  to   { transform: translateX(-200px); }
+}
+
+.font-display {
+  font-family: 'Bebas Neue', sans-serif;
+}
