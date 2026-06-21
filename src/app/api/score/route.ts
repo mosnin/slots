@@ -30,7 +30,16 @@ export async function POST(req: Request) {
   );
 
   try {
-    const { wallet, score, distance, session } = await req.json();
+    let body: any;
+    const ct = req.headers.get('content-type') || '';
+    if (ct.includes('application/x-www-form-urlencoded')) {
+      const text = await req.text();
+      const params = new URLSearchParams(text);
+      body = JSON.parse(params.get('data') || '{}');
+    } else {
+      body = await req.json();
+    }
+    const { wallet, score, distance, session } = body;
 
     // 1. Wallet must be a valid Solana address
     try {

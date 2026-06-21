@@ -60,12 +60,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'Treasury not configured' });
     }
     const connection = new Connection(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
+      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com',
       'confirmed'
     );
-    const treasury = Keypair.fromSecretKey(
-      new Uint8Array(JSON.parse(process.env.TREASURY_KEYPAIR))
-    );
+    let treasury: Keypair;
+    try {
+      treasury = Keypair.fromSecretKey(new Uint8Array(JSON.parse(process.env.TREASURY_KEYPAIR)));
+    } catch {
+      return NextResponse.json({ error: 'Invalid TREASURY_KEYPAIR — must be JSON array of bytes' }, { status: 500 });
+    }
 
     const balance = await connection.getBalance(treasury.publicKey);
     const lamports = balance - FEE_BUFFER_LAMPORTS;

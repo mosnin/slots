@@ -150,7 +150,7 @@ export function App() {
         distance: store.distance,
         session,
       });
-      navigator.sendBeacon('/api/score', new Blob([payload], { type: 'application/json' }));
+      navigator.sendBeacon('/api/score', new URLSearchParams({ data: payload }));
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);

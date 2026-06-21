@@ -10,7 +10,7 @@ import crypto from 'crypto';
  * enforces that score is exactly derived from distance (no arbitrary scores).
  */
 
-const SECRET = process.env.SCORE_HMAC_SECRET || 'dev-insecure-secret-change-me';
+const SECRET = process.env.SCORE_HMAC_SECRET || '';
 
 /** Points awarded per lane crossed (must match gameStore.incrementScore). */
 export const POINTS_PER_LANE = 100;
@@ -36,6 +36,7 @@ export interface SessionToken {
 }
 
 export function signSession(sessionId: string, issuedAt: number, wallet: string): string {
+  if (!SECRET) throw new Error('SCORE_HMAC_SECRET is not set');
   return crypto
     .createHmac('sha256', SECRET)
     .update(`${sessionId}.${issuedAt}.${wallet}`)

@@ -4,8 +4,14 @@ create table if not exists scores (
   wallet text not null,
   score integer not null default 0,
   distance integer not null default 0,
+  eligible boolean not null default true,
+  chicken_balance integer,
   created_at timestamptz default now()
 );
+
+-- Migration: add eligible/chicken_balance columns if upgrading an existing DB
+alter table scores add column if not exists eligible boolean not null default true;
+alter table scores add column if not exists chicken_balance integer;
 
 -- Index for fast leaderboard queries
 create index if not exists scores_score_idx on scores(score desc);
@@ -36,10 +42,11 @@ select
   max(distance) as distance,
   max(created_at) as last_played
 from scores
-where created_at > (
-  select coalesce(max(created_at), now() - interval '5 minutes')
-  from winners
-)
+where eligible = true
+  and created_at > (
+    select coalesce(max(created_at), now() - interval '5 minutes')
+    from winners
+  )
 group by wallet
 order by score desc
 limit 10;
