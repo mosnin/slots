@@ -12,22 +12,6 @@ interface LandingPageProps {
   onPlay: () => void;
 }
 
-const ROAD_LANES = [13, 27, 41, 55, 69, 83];
-const BG_CARS = [
-  { laneY: 13, w: 44, color: '#ef4444', dur: 6,   delay: 0,    rev: false },
-  { laneY: 13, w: 28, color: '#3b82f6', dur: 6,   delay: -3,   rev: false },
-  { laneY: 27, w: 36, color: '#eab308', dur: 5.5, delay: 0,    rev: true  },
-  { laneY: 27, w: 56, color: '#a855f7', dur: 5.5, delay: -2.5, rev: true  },
-  { laneY: 41, w: 32, color: '#22c55e', dur: 7,   delay: 0,    rev: false },
-  { laneY: 41, w: 48, color: '#06b6d4', dur: 7,   delay: -3.5, rev: false },
-  { laneY: 55, w: 40, color: '#f97316', dur: 5,   delay: 0,    rev: true  },
-  { laneY: 55, w: 30, color: '#ec4899', dur: 5,   delay: -2.5, rev: true  },
-  { laneY: 69, w: 52, color: '#ef4444', dur: 6.5, delay: 0,    rev: false },
-  { laneY: 69, w: 34, color: '#6366f1', dur: 6.5, delay: -3,   rev: false },
-  { laneY: 83, w: 36, color: '#eab308', dur: 5.5, delay: 0,    rev: true  },
-  { laneY: 83, w: 44, color: '#22c55e', dur: 5.5, delay: -2.7, rev: true  },
-];
-
 // Mini game preview lanes — left to right, right to left
 const PREVIEW_CARS = [
   { lane: 1, color: '#ef4444', w: 48, dur: 2.2, delay: 0 },
@@ -199,19 +183,16 @@ export function LandingPage({ onPlay }: LandingPageProps) {
   const totalPaidOut = pastWinners.reduce((acc, w) => acc + w.amount_sol, 0);
 
   return (
-    <div className="min-h-screen bg-[#050510] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#0d0c1a] text-white overflow-x-hidden">
 
       {/* ─── Background ─── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <img src="/hero-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" style={{ objectPosition: 'center top' }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(5,5,16,0.4) 0%, rgba(5,5,16,0.7) 60%, #050510 100%)' }} />
-        {BG_CARS.map((car, i) => (
-          <div key={i} className="absolute" style={{ top: `calc(${car.laneY}% + 7px)`, left: 0, height: '10px', width: `${car.w}px`, borderRadius: '3px', background: car.color, opacity: 0.1, boxShadow: `0 0 ${Math.floor(car.w / 2)}px ${car.color}88`, willChange: 'transform', animation: `${car.rev ? 'bgCarRev' : 'bgCar'} ${car.dur}s linear ${car.delay}s infinite` }} />
-        ))}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(74,159,212,0.08) 0%, rgba(13,12,26,0.5) 40%, rgba(13,12,26,0.85) 70%, #0d0c1a 100%)' }} />
       </div>
 
       {/* ─── Nav ─── */}
-      <nav className="relative z-20 border-b border-white/5 bg-black/30 backdrop-blur-md">
+      <nav className="relative z-20 border-b border-[#4a9fd4]/10 bg-[#0d0c1a]/80 backdrop-blur-md">
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="Chicken Road" className="h-9 w-auto" style={{ filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.5))' }} />
@@ -371,7 +352,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       {/* ─── Live prize pot bar ─── */}
       <section className="relative z-10 max-w-4xl mx-auto px-5 pb-12">
         <div className="p-px rounded-3xl" style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.5), rgba(255,255,255,0.06))' }}>
-          <div className="rounded-[23px] p-5 md:p-6 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0d0c1e 0%, #090714 100%)' }}>
+          <div className="rounded-[23px] p-5 md:p-6 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #1a1a2e 0%, #0d0c1a 100%)' }}>
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% -10%, rgba(251,191,36,0.25) 0%, transparent 55%)' }} />
             <img src="/prizepot.png" alt="" className="absolute right-4 bottom-0 h-24 opacity-20 pointer-events-none select-none hidden md:block" />
             <div className="relative grid md:grid-cols-3 gap-5 items-center">
@@ -441,7 +422,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             { icon: '💸', value: totalPaidOut > 0 ? `${totalPaidOut.toFixed(2)}◎` : '—', label: 'Paid Out' },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-              className="rounded-2xl p-4 text-center border border-white/5" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              className="rounded-2xl p-4 text-center border border-[#4a9fd4]/10" style={{ background: 'rgba(26,26,46,0.8)' }}>
               <div className="text-xl mb-1">{stat.icon}</div>
               <div className="font-display text-lg text-yellow-400 leading-none">{stat.value}</div>
               <div className="text-white/25 text-xs mt-0.5">{stat.label}</div>
@@ -481,7 +462,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
               },
             ].map((step, i) => (
               <motion.div key={step.num} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-                className="rounded-2xl p-6 border border-white/5 relative overflow-hidden group hover:border-yellow-400/20 transition-colors" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                className="rounded-2xl p-6 border border-[#4a9fd4]/10 relative overflow-hidden group hover:border-yellow-400/20 transition-colors" style={{ background: 'rgba(26,26,46,0.8)' }}>
                 <div className="absolute top-4 right-4 font-display text-5xl text-white/[0.04] group-hover:text-white/[0.07] transition-colors">{step.num}</div>
                 <div className="text-3xl mb-3">{step.icon}</div>
                 <div className="font-display text-xl text-white/80 mb-2">{step.title}</div>
@@ -503,7 +484,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {FEATURES.map((f, i) => (
               <motion.div key={f.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                className="flex gap-4 rounded-2xl p-5 border border-white/8" style={{ background: 'rgba(255,255,255,0.025)' }}>
+                className="flex gap-4 rounded-2xl p-5 border border-[#4a9fd4]/10" style={{ background: 'rgba(26,26,46,0.8)' }}>
                 <div className="text-4xl shrink-0 mt-0.5">{f.icon}</div>
                 <div className="flex-1">
                   <h3 className="font-display text-xl text-white/85 mb-1">{f.title}</h3>
@@ -590,7 +571,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           <h2 className="font-display text-4xl text-center text-white/85 mb-8">FAQ</h2>
           <div className="space-y-3">
             {FAQ.map((item, i) => (
-              <div key={i} className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              <div key={i} className="rounded-2xl border border-[#4a9fd4]/10 overflow-hidden" style={{ background: 'rgba(26,26,46,0.8)' }}>
                 <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
                   <span className="text-white/80 font-medium text-sm">{item.q}</span>
                   <span className={`text-yellow-400 transition-transform shrink-0 ${openFaq === i ? 'rotate-45' : ''}`}>+</span>
