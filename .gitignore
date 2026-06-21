@@ -7,3 +7,4 @@ dist/
 keeper.json
 .next/
 .claude/
+*.tsbuildinfo
