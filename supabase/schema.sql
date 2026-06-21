@@ -44,7 +44,7 @@ select
 from scores
 where eligible = true
   and created_at > (
-    select coalesce(max(created_at), now() - interval '5 minutes')
+    select coalesce(max(created_at), to_timestamp(0))
     from winners
   )
 group by wallet
