@@ -174,6 +174,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
   const { setVisible } = useWalletModal();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [showWalletHelp, setShowWalletHelp] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handlePlay = () => {
     if (connected) onPlay();
@@ -207,43 +208,86 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       </div>
 
       {/* ─── Nav ─── */}
-      <nav className="relative z-20 flex items-center justify-between px-5 py-3.5 border-b border-white/5 bg-black/30 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl select-none" style={{ filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.6))' }}>🐔</span>
-          <div>
-            <div className="font-display text-xl leading-none text-yellow-400" style={{ textShadow: '0 0 20px rgba(251,191,36,0.45)' }}>CHICKEN ROAD</div>
-            <div className="text-white/25 text-[10px] tracking-widest uppercase">Win SOL every 5 min</div>
+      <nav className="relative z-20 border-b border-white/5 bg-black/30 backdrop-blur-md">
+        <div className="flex items-center justify-between px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl select-none" style={{ filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.6))' }}>🐔</span>
+            <div>
+              <div className="font-display text-xl leading-none text-yellow-400" style={{ textShadow: '0 0 20px rgba(251,191,36,0.45)' }}>CHICKEN ROAD</div>
+              <div className="text-white/25 text-[10px] tracking-widest uppercase hidden sm:block">Win SOL every 5 min</div>
+            </div>
+          </div>
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center gap-6 text-sm text-white/50">
+            <a href="#play" className="hover:text-yellow-400 transition-colors">Play</a>
+            <a href="#how-it-works" className="hover:text-yellow-400 transition-colors">How It Works</a>
+            <a href="#leaderboard" className="hover:text-yellow-400 transition-colors">Leaderboard</a>
+            <a href="#faq" className="hover:text-yellow-400 transition-colors">FAQ</a>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Social links */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {[
+                { label: '𝕏', href: process.env.NEXT_PUBLIC_TWITTER_URL || null, title: 'Twitter / X' },
+                { label: '✈', href: process.env.NEXT_PUBLIC_TELEGRAM_URL || null, title: 'Telegram' },
+                { label: '📈', href: process.env.NEXT_PUBLIC_PUMPFUN_URL || null, title: 'pump.fun' },
+              ].map(({ label, href, title }) =>
+                href ? (
+                  <a key={title} href={href} target="_blank" rel="noopener noreferrer" title={title}
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">
+                    {label}
+                  </a>
+                ) : null
+              )}
+            </div>
+            {/* Wallet button — compact label on mobile */}
+            <div className="hidden sm:block"><WalletMultiButton /></div>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden w-9 h-9 rounded-xl bg-white/8 border border-white/15 flex flex-col items-center justify-center gap-1 ml-1"
+              onClick={() => setMobileNavOpen(v => !v)}
+              aria-label="Menu"
+            >
+              <span className={`w-4 h-0.5 bg-white/60 rounded-full transition-all ${mobileNavOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+              <span className={`w-4 h-0.5 bg-white/60 rounded-full transition-all ${mobileNavOpen ? 'opacity-0' : ''}`} />
+              <span className={`w-4 h-0.5 bg-white/60 rounded-full transition-all ${mobileNavOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+            </button>
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-6 text-sm text-white/50">
-          <a href="#play" className="hover:text-yellow-400 transition-colors">Play</a>
-          <a href="#how-it-works" className="hover:text-yellow-400 transition-colors">How It Works</a>
-          <a href="#leaderboard" className="hover:text-yellow-400 transition-colors">Leaderboard</a>
-          <a href="#faq" className="hover:text-yellow-400 transition-colors">FAQ</a>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Social links — update hrefs when accounts are live */}
-          <div className="hidden sm:flex items-center gap-1.5">
-            {[
-              { label: '𝕏', href: process.env.NEXT_PUBLIC_TWITTER_URL || null, title: 'Twitter / X' },
-              { label: '✈', href: process.env.NEXT_PUBLIC_TELEGRAM_URL || null, title: 'Telegram' },
-              { label: '📈', href: process.env.NEXT_PUBLIC_PUMPFUN_URL || null, title: 'pump.fun' },
-            ].map(({ label, href, title }) =>
-              href ? (
-                <a key={title} href={href} target="_blank" rel="noopener noreferrer" title={title}
-                  className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-yellow-400 hover:border-yellow-400/30 transition-colors text-sm">
-                  {label}
-                </a>
-              ) : null
-            )}
-          </div>
-          <WalletMultiButton />
-        </div>
+        {/* Mobile menu dropdown */}
+        <AnimatePresence>
+          {mobileNavOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-white/5 bg-black/60 overflow-hidden"
+            >
+              <div className="px-5 py-4 flex flex-col gap-1">
+                {[
+                  { href: '#play', label: '🎮 Play' },
+                  { href: '#how-it-works', label: '📖 How It Works' },
+                  { href: '#leaderboard', label: '🏆 Leaderboard' },
+                  { href: '#faq', label: '❓ FAQ' },
+                ].map(({ href, label }) => (
+                  <a key={href} href={href} onClick={() => setMobileNavOpen(false)}
+                    className="py-3 px-4 rounded-xl text-white/60 hover:text-yellow-400 hover:bg-white/5 transition-colors text-sm font-medium">
+                    {label}
+                  </a>
+                ))}
+                <div className="pt-2 border-t border-white/8">
+                  <WalletMultiButton />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* ─── Hero ─── */}
-      <section id="play" className="relative z-10 max-w-6xl mx-auto px-5 pt-12 pb-10 grid lg:grid-cols-2 gap-10 items-center">
-        <div className="text-center lg:text-left">
+      <section id="play" className="relative z-10 max-w-6xl mx-auto px-5 pt-10 pb-10 grid lg:grid-cols-2 gap-8 items-center">
+        {/* CTA column — always first on mobile */}
+        <div className="text-center lg:text-left order-1">
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <div className="inline-flex items-center gap-2 bg-green-400/10 border border-green-400/25 rounded-full px-3 py-1 mb-5">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -304,8 +348,8 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           </motion.div>
         </div>
 
-        {/* Right: animated game preview */}
-        <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, duration: 0.5 }}>
+        {/* Game preview — second on mobile, right column on desktop */}
+        <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, duration: 0.5 }} className="order-2">
           <div className="p-px rounded-3xl" style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.6), rgba(249,115,22,0.3), rgba(255,255,255,0.06))' }}>
             <div className="rounded-[23px] overflow-hidden bg-[#0a0a18]">
               <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-black/40">

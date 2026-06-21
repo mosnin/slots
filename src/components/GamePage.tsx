@@ -9,6 +9,11 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useGameStore } from "../store/gameStore";
 
+const DPAD_DIRS = [
+  [null, { label: '↑', dir: 'up' }, null],
+  [{ label: '←', dir: 'left' }, { label: '↓', dir: 'down' }, { label: '→', dir: 'right' }],
+] as (null | { label: string; dir: string })[][];
+
 interface GamePageProps {
   onBack: () => void;
   onScoreSubmit: (score: number, distance: number) => void;
@@ -22,6 +27,7 @@ export function GamePage({ onBack, onScoreSubmit }: GamePageProps) {
   const leaderboard = useGameStore((s) => s.leaderboard);
   const { publicKey } = useWallet();
 
+  const phase = useGameStore((s) => s.phase);
   const mins = Math.floor(timeUntilDraw / 60);
   const secs = timeUntilDraw % 60;
   const urgency = timeUntilDraw < 60;
@@ -58,6 +64,33 @@ export function GamePage({ onBack, onScoreSubmit }: GamePageProps) {
       <div className="flex-1 relative overflow-hidden">
         <ChickenGame onScoreSubmit={onScoreSubmit} />
       </div>
+
+      {/* ── Mobile D-pad (below canvas, never overlaps game) ── */}
+      {phase === 'playing' && (
+        <div className="shrink-0 flex justify-center items-center py-2 bg-black/40 border-t border-white/5 md:hidden">
+          <div className="grid grid-cols-3 gap-1.5" data-dpad>
+            {DPAD_DIRS.map((row, ri) =>
+              row.map((btn, ci) =>
+                btn ? (
+                  <button
+                    key={`${ri}-${ci}`}
+                    data-dpad
+                    className="w-12 h-12 bg-white/10 active:bg-white/25 backdrop-blur rounded-xl border border-white/20 flex items-center justify-center text-white text-lg font-bold shadow-md transition-colors"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent('dpad', { detail: btn.dir }));
+                    }}
+                  >
+                    {btn.label}
+                  </button>
+                ) : (
+                  <div key={`${ri}-${ci}`} />
+                )
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Live leaderboard strip ── */}
       <div className="shrink-0 border-t border-white/5 bg-black/60 backdrop-blur px-4 py-2">

@@ -286,32 +286,6 @@ export function GameHUD() {
         )}
       </AnimatePresence>
 
-      {/* ── Mobile D-pad ── */}
-      {phase === 'playing' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto">
-          <div className="grid grid-cols-3 gap-2">
-            {([[null, '↑', null], ['←', '↓', '→']] as (string | null)[][]).map((row, ri) =>
-              row.map((btn, ci) =>
-                btn ? (
-                  <button
-                    key={`${ri}-${ci}`}
-                    className="w-14 h-14 bg-white/10 active:bg-white/25 backdrop-blur rounded-2xl border border-white/20 flex items-center justify-center text-white text-xl font-bold shadow-lg transition-colors"
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      const dir = ({ '↑': 'up', '↓': 'down', '←': 'left', '→': 'right' } as Record<string, string>)[btn];
-                      if (dir) window.dispatchEvent(new CustomEvent('dpad', { detail: dir }));
-                    }}
-                  >
-                    {btn}
-                  </button>
-                ) : (
-                  <div key={`${ri}-${ci}`} />
-                )
-              )
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

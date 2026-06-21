@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050510"/>
+      <stop offset="100%" style="stop-color:#0a0a1e"/>
+    </linearGradient>
+    <linearGradient id="cta" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fde68a"/>
+      <stop offset="50%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Road lanes -->
+  <rect x="0" y="420" width="1200" height="40" fill="#2a2a2a" opacity="0.6"/>
+  <rect x="0" y="480" width="1200" height="40" fill="#2a2a2a" opacity="0.6"/>
+  <rect x="0" y="540" width="1200" height="40" fill="#2a2a2a" opacity="0.6"/>
+  <!-- Cars -->
+  <rect x="80" y="430" width="90" height="20" rx="5" fill="#ef4444" opacity="0.8"/>
+  <rect x="350" y="430" width="70" height="20" rx="5" fill="#3b82f6" opacity="0.8"/>
+  <rect x="700" y="430" width="80" height="20" rx="5" fill="#22c55e" opacity="0.8"/>
+  <rect x="950" y="430" width="100" height="20" rx="5" fill="#a855f7" opacity="0.8"/>
+  <rect x="150" y="490" width="85" height="20" rx="5" fill="#eab308" opacity="0.8"/>
+  <rect x="550" y="490" width="75" height="20" rx="5" fill="#f97316" opacity="0.8"/>
+  <rect x="850" y="490" width="90" height="20" rx="5" fill="#ec4899" opacity="0.8"/>
+  <!-- Glow orb -->
+  <circle cx="600" cy="240" r="220" fill="rgba(251,191,36,0.06)"/>
+  <!-- Chicken emoji text -->
+  <text x="600" y="180" text-anchor="middle" font-size="120" font-family="serif">🐔</text>
+  <!-- Title -->
+  <text x="600" y="280" text-anchor="middle" font-family="Impact, Arial Black, sans-serif" font-size="96" font-weight="900" fill="#FFD700" filter="url(#glow)" letter-spacing="4">CHICKEN ROAD</text>
+  <!-- Subtitle -->
+  <text x="600" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.55)" letter-spacing="2">Cross the road · Top the board · WIN REAL SOL</text>
+  <!-- CTA pill -->
+  <rect x="430" y="368" width="340" height="52" rx="26" fill="url(#cta)"/>
+  <text x="600" y="401" text-anchor="middle" font-family="Impact, Arial Black, sans-serif" font-size="26" font-weight="900" fill="#000" letter-spacing="2">🎮 PRIZE POT EVERY 5 MIN</text>
+  <!-- Sol badge -->
+  <text x="600" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="rgba(255,255,255,0.2)" letter-spacing="3">POWERED BY $CHICKEN ON SOLANA</text>
+</svg>

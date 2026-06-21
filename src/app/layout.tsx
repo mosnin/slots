@@ -11,9 +11,29 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://chickenroad.gg';
+
 export const metadata: Metadata = {
   title: 'Chicken Road — Win SOL Every 5 Minutes',
   description: 'Cross the road, top the leaderboard, win the prize pot. A Solana-powered skill game.',
+  metadataBase: new URL(BASE_URL),
+  openGraph: {
+    title: 'Chicken Road — Win SOL Every 5 Minutes',
+    description: 'Cross lanes, top the leaderboard, win real SOL every 5 minutes. Powered by $CHICKEN on Solana.',
+    url: BASE_URL,
+    siteName: 'Chicken Road',
+    images: [{ url: '/og.svg', width: 1200, height: 630, alt: 'Chicken Road' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Chicken Road — Win SOL Every 5 Minutes',
+    description: 'Cross lanes, top the leaderboard, win real SOL every 5 minutes.',
+    images: ['/og.svg'],
+  },
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
