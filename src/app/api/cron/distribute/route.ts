@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const FEE_BUFFER_LAMPORTS = 10_000; // leave room for the network fee
+const FEE_BUFFER_LAMPORTS = 100_000; // ~0.0001 SOL — covers tx fee with headroom
 
 function db(): SupabaseClient {
   return createClient(
@@ -109,7 +109,7 @@ export async function GET(req: Request) {
     await resetNextDraw(supabase);
 
     // ── Send SOL ───────────────────────────────────────────────────────
-    let txSig: string | null = null;
+    let txSig: string;
     try {
       const tx = new Transaction().add(
         SystemProgram.transfer({
@@ -119,12 +119,16 @@ export async function GET(req: Request) {
         })
       );
       txSig = await sendAndConfirmTransaction(connection, tx, [treasury]);
-    } catch (e) {
+    } catch (e: any) {
       console.error('SOL transfer failed:', e);
-      // Claim row stays (tx_signature null) so the round isn't reprocessed/double-paid.
+      // Roll back the claim so the next cron invocation can retry —
+      // SOL never left the treasury so it's safe to un-consume this round.
+      await supabase.from('winners').delete().eq('id', claim.id);
+      await supabase.from('config').upsert([{ key: 'current_round', value: (round - 1).toString() }]);
+      return NextResponse.json({ error: `Transfer failed: ${e.message}` }, { status: 500 });
     }
 
-    // Record the resulting signature on the existing claim row.
+    // Record the confirmed signature on the existing claim row.
     await supabase.from('winners').update({ tx_signature: txSig }).eq('id', claim.id);
 
     return NextResponse.json({
