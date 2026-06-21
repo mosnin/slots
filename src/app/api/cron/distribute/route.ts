@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const FEE_BUFFER_LAMPORTS = 100_000; // ~0.0001 SOL — covers tx fee with headroom
+const FEE_BUFFER_LAMPORTS = 1_500_000; // 0.0015 SOL — covers rent-exempt minimum (~0.00089) + tx fees
 
 function db(): SupabaseClient {
   return createClient(
