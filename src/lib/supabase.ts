@@ -83,9 +83,6 @@ export async function getNextDraw(): Promise<number> {
     .select('value')
     .eq('key', 'next_draw_at')
     .single();
-  if (!data) return Date.now() + 300000;
-  const t = new Date(data.value).getTime();
-  // If the stored timestamp is in the past (stale config / cron hasn't fired),
-  // treat it as a fresh 5-minute window so the timer doesn't sit at 0:00.
-  return t > Date.now() ? t : Date.now() + 300000;
+  if (!data) return 0; // 0 = unknown, caller ignores it
+  return new Date(data.value).getTime();
 }

@@ -113,7 +113,9 @@ export function App() {
         );
 
         setPrizePool(pool);
-        nextDrawRef.current = nextDraw;
+        // Only adopt the DB timestamp if it's a real future value — never let
+        // a stale/past timestamp reset the local countdown that's already running.
+        if (nextDraw > Date.now()) nextDrawRef.current = nextDraw;
         setAllTimeStats(allTime.totalPlayers, allTime.highScore);
 
         if (publicKey) {
